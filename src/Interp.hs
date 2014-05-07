@@ -130,7 +130,7 @@ evalRMatchS value (Var ident) = return $ newSub ident value
 evalRMatchS (ConstrV vIdent values) (Constr eIdent lExprs) = 
 	if ((length values) == (length lExprs)) && (vIdent == eIdent)
 	then disjointUnions_M $ zipWith evalRMatchS values lExprs
-	else failEval $ "Different constructors " ++ show (ConstrV vIdent values) ++ " |vs| " ++ show (Constr eIdent lExprs)
+	else failEval $ "Different constructors of value\n\t" ++ pretty (ConstrV vIdent values) ++ "\nand pattern\n\t" ++ pretty (Constr eIdent lExprs)
 -- Dublication / Equality
 evalRMatchS value (DupEq lExpr) = do
 	dupEq <- evalDupEq value
