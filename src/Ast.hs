@@ -48,11 +48,7 @@ data Expr     = LeftE LExpr
               deriving (Show, Eq)
 data LExpr    = Var Ident
               | Constr Ident [LExpr]
---              | UnTup LExpr
---              | BinTup LExpr LExpr
               | DupEq LExpr
-              -- | EmpLst
-              -- | Cons LExpr LExpr
               deriving (Show, Eq)
 type Ident    = String
 
@@ -61,10 +57,6 @@ type Ident    = String
 -- * a constructor of 0 or more values
 -- * with two special case constructors of singleton and tuple
 data Value = ConstrV Ident [Value]
---           | UnTupV  Value
---           | BinTupV Value Value
-           -- | ConsV Value Value
-           -- | EmpLstV
            deriving (Show, Eq)
 
 
