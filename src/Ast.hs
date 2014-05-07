@@ -51,8 +51,8 @@ data LExpr    = Var Ident
               | UnTup LExpr
               | BinTup LExpr LExpr
               | DupEq LExpr
-              | EmpLst
-              | Cons LExpr LExpr
+              -- | EmpLst
+              -- | Cons LExpr LExpr
               deriving (Show, Eq)
 type Ident    = String
 
@@ -63,8 +63,8 @@ type Ident    = String
 data Value = ConstrV Ident [Value]
            | UnTupV  Value
            | BinTupV Value Value
-           | ConsV Value Value
-           | EmpLstV
+           -- | ConsV Value Value
+           -- | EmpLstV
            deriving (Show, Eq)
 
 

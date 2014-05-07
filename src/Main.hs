@@ -59,8 +59,8 @@ parseAndRun program value filename =
 		    funEnv = liftM runPreparse prg
 		    res = join $ liftM2 (runProg program) val funEnv
 		case res of
-			Left err -> print err >> (exitWith $ ExitFailure 1)
-			Right r -> print (valueToString r)
+			Left err -> putStrLn err >> (exitWith $ ExitFailure 1)
+			Right r -> putStrLn (valueToString r)
 parseInput :: String -> IO (Either Error Program)
 parseInput = liftM parseString . loadInput
 

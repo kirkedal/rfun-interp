@@ -105,10 +105,12 @@ lexpr = BinTup <$> (symbol "{" *> lexpr) <*> (symbol "," *> lexpr <* symbol "}")
     <|> Constr <$> constrName <*> pure []
     <|> Var    <$> ident
     <|> parens (chainr1 lexpr cons)
-    <|> symbol "[]" *> pure EmpLst
+    -- <|> symbol "[]" *> pure EmpLst
+    <|> symbol "[]" *> pure (Constr "Nil" [])
     <|> parens lexpr 
     where
-      cons = symbol ":" *> pure Cons
+    --   cons = symbol ":" *> pure Cons
+      cons = symbol ":" *> pure (\v1 v2 -> Constr "Cons" [v1,v2])
 
 someVars :: Parser [LExpr]
 someVars = lexpr `sepBy1` symbol ","
@@ -137,9 +139,11 @@ value = BinTupV <$> (symbol "{" *> value) <*> (symbol "," *> value <* symbol "}"
     <|> ConstrV <$> constrName <*> parens vals 
     <|> ConstrV <$> constrName <*> pure []
     <|> parens (chainr1 value cons)
-    <|> symbol "[]" *> pure EmpLstV
+    -- <|> symbol "[]" *> pure EmpLstV
+    <|> symbol "[]" *> pure (ConstrV "Nil" [])
     where
-      cons = symbol ":" >> return ConsV
+      -- cons = symbol ":" >> return ConsV
+      cons = symbol ":" *> pure (\v1 v2 -> ConstrV "Cons" [v1,v2])
 
 someVals :: Parser [Value]
 someVals = value `sepBy1` symbol ","

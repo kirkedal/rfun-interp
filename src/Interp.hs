@@ -39,11 +39,14 @@ valueToLExpr (UnTupV  value) =
 	UnTup (valueToLExpr value)
 valueToLExpr (BinTupV value1 value2) = 
 	BinTup (valueToLExpr value1) (valueToLExpr value2)
-valueToLExpr (ConsV value1 value2) = 
-	Cons (valueToLExpr value1) (valueToLExpr value2)
-valueToLExpr (EmpLstV) = EmpLst 
+-- valueToLExpr (ConsV value1 value2) = 
+-- 	Cons (valueToLExpr value1) (valueToLExpr value2)
+-- valueToLExpr (EmpLstV) = EmpLst 
 
 valueToString :: Value -> String
+valueToString (ConstrV "Cons" [value1,value2]) = 
+	(valueToString value1) ++ " : " ++ (valueToString value2)
+valueToString (ConstrV "Nil" []) = "[ ]"
 valueToString (ConstrV ident []) = ident
 valueToString (ConstrV ident values) = 
 	ident ++ "(" ++ foldl1 (\x y -> x ++ ", " ++ y) vals ++ ")"
@@ -53,9 +56,9 @@ valueToString (UnTupV  value) =
 	"{" ++ valueToString value ++ "}"
 valueToString (BinTupV value1 value2) = 
 	"{" ++ valueToString value1 ++ ", " ++ valueToString value2 ++ "}"
-valueToString (ConsV value1 value2) = 
-	(valueToString value1) ++ " : " ++ (valueToString value2)
-valueToString (EmpLstV) = "[ ]"
+-- valueToString (ConsV value1 value2) = 
+-- 	(valueToString value1) ++ " : " ++ (valueToString value2)
+-- valueToString (EmpLstV) = "[ ]"
 
 -------------------------------------------------------------------------------
 --- Substitutions and functions on these
@@ -154,9 +157,9 @@ evalRMatchS (ConstrV vIdent values) (Constr eIdent lExprs) =
 evalRMatchS (UnTupV value) (UnTup lExpr) = evalRMatchS value lExpr
 evalRMatchS (BinTupV value1 value2) (BinTup lExpr1 lExpr2) = 
 	disjointUnion_M (evalRMatchS value1 lExpr1) (evalRMatchS value2 lExpr2)
-evalRMatchS (ConsV value1 value2) (Cons lExpr1 lExpr2) = 
-	disjointUnion_M (evalRMatchS value1 lExpr1) (evalRMatchS value2 lExpr2)
-evalRMatchS (EmpLstV) (EmpLst) = return idSub
+-- evalRMatchS (ConsV value1 value2) (Cons lExpr1 lExpr2) = 
+-- 	disjointUnion_M (evalRMatchS value1 lExpr1) (evalRMatchS value2 lExpr2)
+-- evalRMatchS (EmpLstV) (EmpLst) = return idSub
 -- Dublication / Equality
 evalRMatchS value (DupEq lExpr) = evalRMatchS (evalDupEq value) lExpr
 -- Any other case is an error
@@ -187,15 +190,15 @@ evalRMatchV sub (BinTup lExpr1 lExpr2) =
 		return $ BinTupV value1 value2
 	where
 		vars = findVars lExpr1
-evalRMatchV sub (Cons lExpr1 lExpr2) = 
-	do
-		(sub1, sub2) <- divide vars sub
-		value1 <- evalRMatchV sub1 lExpr1
-		value2 <- evalRMatchV sub2 lExpr2
-		return $ ConsV value1 value2
-	where
-		vars = findVars lExpr1
-evalRMatchV _ (EmpLst) = return EmpLstV
+-- evalRMatchV sub (Cons lExpr1 lExpr2) = 
+-- 	do
+-- 		(sub1, sub2) <- divide vars sub
+-- 		value1 <- evalRMatchV sub1 lExpr1
+-- 		value2 <- evalRMatchV sub2 lExpr2
+-- 		return $ ConsV value1 value2
+-- 	where
+		-- vars = findVars lExpr1
+-- evalRMatchV _ (EmpLst) = return EmpLstV
 -- Dublication / Equality
 -- Not sure that this makes sense
 evalRMatchV sub (DupEq lExpr) = fmap evalDupEq $ evalRMatchV sub lExpr
@@ -308,8 +311,8 @@ findVars (Var ident)            = [ident]
 findVars (Constr _ lExprs)      = concatMap findVars lExprs
 findVars (UnTup lExpr)          = findVars lExpr
 findVars (BinTup lExpr1 lExpr2) = concatMap findVars [lExpr1, lExpr2]
-findVars (Cons lExpr1 lExpr2)   = concatMap findVars [lExpr1, lExpr2]
-findVars (EmpLst)               = []
+-- findVars (Cons lExpr1 lExpr2)   = concatMap findVars [lExpr1, lExpr2]
+-- findVars (EmpLst)               = []
 findVars (DupEq lExpr)          = findVars lExpr
 
 -- Running a program
