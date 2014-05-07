@@ -14,8 +14,9 @@ module Main (main) where
 
 import Ast
 import Preparse (runPreparse)
-import Interp (runProg, valueToString)
+import Interp (runProg)
 import Parser (parseFile, Error, parseValue, parseString)
+import PrettyPrint (valueToString)
 import System.Environment
 import System.Exit
 import System.Timeout

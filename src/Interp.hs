@@ -16,6 +16,7 @@
 module Interp where
 
 import Ast
+import PrettyPrint
 import qualified Data.Map as M
 import Control.Monad
 import Control.Applicative
@@ -36,20 +37,6 @@ failEval = Left
 valueToLExpr :: Value -> LExpr
 valueToLExpr (ConstrV ident values) = 
 	Constr ident (map valueToLExpr values)
-
-valueToString :: Value -> String
-valueToString (ConstrV "Tuple" values) = 
-	"{" ++ (concat $ intersperse ", " vals) ++ "}"
-	where
-		vals = map valueToString values
-valueToString (ConstrV "Cons" [value1,value2]) = 
-	(valueToString value1) ++ " : " ++ (valueToString value2)
-valueToString (ConstrV "Nil" []) = "[ ]"
-valueToString (ConstrV ident []) = ident
-valueToString (ConstrV ident values) = 
-	ident ++ "(" ++ (concat $ intersperse ", " vals) ++ ")"
-	where
-		vals = map valueToString values
 
 -------------------------------------------------------------------------------
 --- Substitutions and functions on these
@@ -144,7 +131,7 @@ evalRMatchS value (Var ident) = return $ newSub ident value
 evalRMatchS (ConstrV vIdent values) (Constr eIdent lExprs) = 
 	if ((length values) == (length lExprs)) && (vIdent == eIdent)
 	then disjointUnions_M $ zipWith evalRMatchS values lExprs
-	else failEval $ "Different constructors " ++ show (ConstrV vIdent values) ++ " |vs| " ++ show (Constr eIdent lExprs)
+	else failEval $ "Different constructors matching value\n\t" ++ valueToString (ConstrV vIdent values) ++ "\n to pattern\n\t" ++ ppLExpr (Constr eIdent lExprs)
 -- Dublication / Equality
 evalRMatchS value (DupEq lExpr) = do
 	dupEq <- evalDupEq value
@@ -233,7 +220,7 @@ evalExpV funcEnv sub (CaseOf lExpr matches) =
 	do
 		(sub_l, sub_t) <- divide vars sub
 		val_p <- evalExpV funcEnv sub_l (LeftE lExpr)
-		(j, sub_j) <- evalMaybe ("No match in cases:\n " ++ (show matches) ++ "\n of value:\n" ++ valueToString val_p) $
+		(j, sub_j) <- evalMaybe ("No match in cases:\n" ++ (ppExpr $ CaseOf lExpr matches) ++ "\n of value:\n" ++ valueToString val_p) $
 					 findSubIndex (evalRMatchS val_p) $ map fst matches
 		sub_jt <- disUnion sub_j sub_t
 		val <- evalExpV funcEnv sub_jt $ snd $ matches !! j
