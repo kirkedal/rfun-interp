@@ -65,7 +65,7 @@ lookupDivide ident sub =
 		value <- lookupValue ident singleton
 	 	return (value, rest)
 
-
+-- Finds the disjoint union between two substitutions
 disUnion :: Substitution -> Substitution -> Eval Substitution
 disUnion subs1 subs2 = 
 	if union_size == subs1_size + subs2_size
@@ -117,10 +117,10 @@ evalRMatchS :: Value -> LExpr -> Eval Substitution
 -- Single variable resulting in a signleton substitusion
 evalRMatchS value (Var ident) = return $ newSub ident value
 -- Constructor or a special constructor
-evalRMatchS (ConstrV vIdent values) (Constr eIdent lExprs) = 
+evalRMatchS v@(ConstrV vIdent values) le@(Constr eIdent lExprs) = 
 	if ((length values) == (length lExprs)) && (vIdent == eIdent)
 	then disjointUnions_M $ zipWith evalRMatchS values lExprs
-	else failEval $ "Different constructors of value\n\t" ++ pretty (ConstrV vIdent values) ++ "\nand pattern\n\t" ++ pretty (Constr eIdent lExprs)
+	else failEval $ "Different constructors of value\n\t" ++ pretty v ++ "\nand pattern\n\t" ++ pretty le
 -- Dublication / Equality
 evalRMatchS value (DupEq lExpr) = do
 	dupEq <- evalDupEq value

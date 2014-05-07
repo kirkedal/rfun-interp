@@ -22,7 +22,6 @@ lexeme :: Parser a -> Parser a
 lexeme p = p <* skipAll
 
 skipAll :: Parser ()
---skipAll = skipMany $ munch1 isSpace
 skipAll = skipMany $ choice [comment, space]
 
 symbol :: String -> Parser String
@@ -95,8 +94,6 @@ expr = LetIn  <$> (keyword "let" *> lexpr)
 
 lexpr :: Parser LExpr
 lexpr = (\x y -> Constr "Tuple" [x,y]) <$> (symbol "{" *> lexpr) <*> (symbol "," *> lexpr <* symbol "}")
---      BinTup <$> (symbol "{" *> lexpr) <*> (symbol "," *> lexpr <* symbol "}")
---    <|> UnTup  <$> parensT lexpr
     <|> (\x -> Constr "Tuple" [x]) <$> parensT lexpr
     <|> DupEq  <$> parensB lexpr
     <|> Constr <$> constrName <*> parens vars 
@@ -131,8 +128,6 @@ program = funDefs
 
 value :: Parser Value
 value = (\x y -> ConstrV "Tuple" [x,y]) <$> (symbol "{" *> value) <*> (symbol "," *> value <* symbol "}")
---      BinTupV <$> (symbol "{" *> value) <*> (symbol "," *> value <* symbol "}")
---    <|> UnTupV  <$> parensT value
     <|> (\x -> ConstrV "Tuple" [x]) <$> parensT value
     <|> ConstrV <$> constrName <*> parens vals 
     <|> ConstrV <$> constrName <*> pure []
