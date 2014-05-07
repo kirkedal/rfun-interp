@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  Main
+-- Module      :  Ast
 -- Copyright   :  Michael Kirkedal Thomsen, 2013
 -- License     :  AllRightsReserved
 --
@@ -14,14 +14,14 @@
 --
 -- Grammar:                                         
 -- q ::= d*                           (program)
--- d ::= f l 􏰟 e                     (definition)
+-- d ::= f l =^= e                    (definition)
 -- l ::= x                            (variable)
---     | c(l1,...,ln)                 (constructor)
---     | ⌊l⌋                          (duplication/equality)
+--     | c(l_1,...,l_n)               (constructor)
+--     | |l|                          (duplication/equality)
 -- e ::= l                            (left-expression)
---     | let lout = f lin in e        (let-expression)
---     | rlet lin = f lout in e       (rlet-expression)
---     | case l of {li → ei}+         (case-expression)
+--     | let l_out = f l_in in e      (let-expression)
+--     | rlet l_in = f l_out in e     (rlet-expression)
+--     | case l of {l_i -> e_i}+      (case-expression)
 -- 
 -- Syntax domains: 
 -- q ∈ Programs
@@ -41,26 +41,31 @@ module Ast where
 import qualified Data.Map as M
 import Data.List (intersperse)
 
+-- |A program is a sequence of functions
 type Program  = [Func]
+-- |A function is an identifier is some left-expression as parameter and
+--  an expression as body
 data Func     = Func { funcname  :: Ident
                      , param     :: LExpr
                      , body      :: Expr}
               deriving (Eq, Show)
-data Expr     = LeftE LExpr
-              | LetIn LExpr Ident LExpr Expr
-              | RLetIn LExpr Ident LExpr Expr
-              | CaseOf LExpr [(LExpr, Expr)]
+-- |An expression is
+data Expr     = LeftE LExpr                       -- ^ Left-expression
+              | LetIn LExpr Ident LExpr Expr      -- ^ Let-binding
+              | RLetIn LExpr Ident LExpr Expr     -- ^ Let-binding with reverse function call
+              | CaseOf LExpr [(LExpr, Expr)]      -- ^ Case-of expression
               deriving (Show, Eq)
-data LExpr    = Var Ident
-              | Constr Ident [LExpr]
-              | DupEq LExpr
+-- |A left-expression is
+data LExpr    = Var Ident                         -- ^ Variable
+              | Constr Ident [LExpr]              -- ^ Constructor term
+              | DupEq LExpr                       -- ^ Duplication / equality test
               deriving (Show, Eq)
+-- |Identifiers at simple Strings
 type Ident    = String
 
 
 -- |A value (p. 16) is defined as
 -- * a constructor of 0 or more values
--- * with two special case constructors of singleton and tuple
 data Value = ConstrV Ident [Value]
            deriving (Show, Eq)
 

@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  Main
+-- Module      :  Preparse
 -- Copyright   :  Michael Kirkedal Thomsen, 2013
 -- License     :  AllRightsReserved
 --
@@ -22,7 +22,18 @@ import qualified Data.Map as M
 import Data.List (nub)
 
 -------------------------------------------------------------------------------
---- Collecting functions of identical name
+-- * Pre-parse / de-sugar call function
+-------------------------------------------------------------------------------
+
+-- |Pre-parse / de-sugar call function
+runPreparse :: Program -> FuncEnv
+runPreparse program = M.fromList funcEnv
+	where
+		funcEnvSS = programToFuncEnvSS program
+		funcEnv = desugarArgPatMatch funcEnvSS
+
+-------------------------------------------------------------------------------
+-- ** Collecting functions of identical name for the function environment
 -------------------------------------------------------------------------------
 
 -- |Generates a list of unique function names
@@ -36,7 +47,7 @@ programToFuncEnvSS program = map (\x -> (x, filter (\y -> funcname y == x) progr
 		funlist = functionList program
 
 -------------------------------------------------------------------------------
---- De-sugar pattern matching in arguments, while preserving order
+-- ** De-sugar pattern matching in arguments, while preserving order
 -------------------------------------------------------------------------------
 
 -- |De-sugar pattern matching in arguments, while preserving order
@@ -48,15 +59,3 @@ desugarArgPatMatch = map desugarArgPatMatchSingle
 		desugarArgPatMatchSingle (idt, funcs) = (idt, Func idt (Var "x") (CaseOf (Var "x") cases))
 			where
 				cases = map (\x -> (param x, body x)) funcs
-
--------------------------------------------------------------------------------
---- Pre-parse / de-sugar call function
--------------------------------------------------------------------------------
-
--- |Pre-parse / de-sugar call function
-runPreparse :: Program -> FuncEnv
-runPreparse program = M.fromList funcEnv
-	where
-		funcEnvSS = programToFuncEnvSS program
-		funcEnv = desugarArgPatMatch funcEnvSS
-

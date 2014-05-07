@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  Main
+-- Module      :  Parser
 -- Copyright   :  Michael Kirkedal Thomsen, 2013
 -- License     :  AllRightsReserved
 --
@@ -8,7 +8,7 @@
 -- Stability   :  
 -- Portability :
 --
--- |Implementation a simple parser for RFun
+-- |Implementation a simple parser for rFun
 --
 -----------------------------------------------------------------------------
 
@@ -20,6 +20,30 @@ import Control.Applicative hiding (many)
 import Control.Monad
 import Data.Char
 import Data.List
+
+-------------------------------------------------------------------------------
+-- * Functions for parsing values and programs
+-------------------------------------------------------------------------------
+
+-- |Parsing a String to a Value
+parseValue :: String -> Either Error Value
+parseValue s = case find (null . snd) $ readP_to_S (skipAll *> value) s of
+                  Just (x,_) -> Right x
+                  Nothing    -> Left "syntax error in value"
+
+-- |Parsing a String to a program
+parseString :: String -> Either Error Program
+parseString s = case find (null . snd) $ readP_to_S (skipAll *> program) s of
+                  Just (x,_) -> Right x
+                  Nothing    -> Left "syntax error"
+
+-- |Reading a file from a path and parsing it to a program
+parseFile :: FilePath -> IO (Either Error Program)
+parseFile = liftM parseString . readFile
+
+-------------------------------------------------------------------------------
+-- * Implementation of the parser
+-------------------------------------------------------------------------------
 
 type Parser = ReadP
 
@@ -137,7 +161,7 @@ value = (\x y -> ConstrV "Tuple" [x,y]) <$> (symbol "{" *> value) <*> (symbol ",
     <|> ConstrV <$> constrName <*> parens vals 
     <|> ConstrV <$> constrName <*> pure []
     <|> parens (chainr1 value cons)
-    <|> symbol "[]" *> pure (ConstrV "Nil" [])
+    <|> parensS (foldr (\a b -> ConstrV "Cons" [a,b]) (ConstrV "Nil" []) <$> (sepBy value (symbol ",")))
     where
       cons = symbol ":" *> pure (\v1 v2 -> ConstrV "Cons" [v1,v2])
 
@@ -146,17 +170,3 @@ someVals = value `sepBy1` symbol ","
 
 vals :: Parser [Value]
 vals = someVals <|> pure []
-
-parseValue :: String -> Either Error Value
-parseValue s = case find (null . snd) $ readP_to_S (skipAll *> value) s of
-                  Just (x,_) -> Right x
-                  Nothing    -> Left "syntax error in value"
-
-
-parseString :: String -> Either Error Program
-parseString s = case find (null . snd) $ readP_to_S (skipAll *> program) s of
-                  Just (x,_) -> Right x
-                  Nothing    -> Left "syntax error"
-
-parseFile :: FilePath -> IO (Either Error Program)
-parseFile = liftM parseString . readFile

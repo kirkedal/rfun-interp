@@ -18,3 +18,4 @@ library
   -- exposed-modules:     
   -- other-modules:       
   build-depends:       base ==4.6.*
+  hs-source-dirs: src

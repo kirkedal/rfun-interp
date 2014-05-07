@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  Main
+-- Module      :  Interp
 -- Copyright   :  Michael Kirkedal Thomsen, 2013
 -- License     :  AllRightsReserved
 --
@@ -28,6 +28,9 @@ import Control.Applicative
 import Data.Maybe
 import Data.List
 
+-------------------------------------------------------------------------------
+-- * Interpreter main
+-------------------------------------------------------------------------------
 
 -- |Making an Maybe an Eval
 evalMaybe :: Error -> Maybe a -> Eval a
@@ -37,8 +40,13 @@ evalMaybe _ (Just a) = return a
 -- |Simple fail
 failEval = Left
 
+-- |Interpreting an rFun program
+runProg :: Ident -> Value -> FuncEnv -> Eval Value
+runProg ident value funcEnv = 
+	evalFunV funcEnv idSub ident (valueToLExpr value)
+
 -------------------------------------------------------------------------------
---- Substitutions and functions on these
+-- ** Substitutions and functions on these
 -------------------------------------------------------------------------------
 -- |A substitution is a mapping from a Ident (string) to a value
 type Substitution = M.Map Ident Value
@@ -97,7 +105,7 @@ disjointUnions_M subs = foldl disjointUnion_M (return idSub) subs
 
 
 -------------------------------------------------------------------------------
---- Program functions
+-- ** Program functions
 -------------------------------------------------------------------------------
 
 -- |Lookup a function in the function environment
@@ -109,7 +117,7 @@ lookupFunction funcEnv ident =
 
 
 -------------------------------------------------------------------------------
---- The interpreter
+-- ** The interpreter
 -------------------------------------------------------------------------------
 
 -- |Eq/Dup operator (Eqs. 3 and 4, p. 17)
@@ -262,9 +270,4 @@ findVars :: LExpr -> [Ident]
 findVars (Var ident)            = [ident]
 findVars (Constr _ lExprs)      = concatMap findVars lExprs
 findVars (DupEq lExpr)          = findVars lExpr
-
--- |Interpreting an rFun program
-runProg :: Ident -> Value -> FuncEnv -> Eval Value
-runProg ident value funcEnv = 
-	evalFunV funcEnv idSub ident (valueToLExpr value)
 
