@@ -12,7 +12,6 @@
 --- Created : Dec 2013 by Michael Kirkedal Thomsen <kirkedal@acm.org>
 ----------------------------------------------------------------------
 
---module RFunInterp(runProg) where
 module Interp where
 
 import Ast
@@ -27,15 +26,6 @@ evalMaybe e Nothing = failEval e
 evalMaybe _ (Just a) = return a
 
 failEval = Left
-
--------------------------------------------------------------------------------
---- Values and functions on these
--------------------------------------------------------------------------------
-
--- Converting a value to a left-expression
-valueToLExpr :: Value -> LExpr
-valueToLExpr (ConstrV ident values) = 
-	Constr ident (map valueToLExpr values)
 
 -------------------------------------------------------------------------------
 --- Substitutions and functions on these
@@ -219,14 +209,14 @@ evalExpV funcEnv sub e@(CaseOf lExpr matches) =
 	do
 		(sub_l, sub_t) <- divide vars sub
 		val_p <- evalExpV funcEnv sub_l (LeftE lExpr)
-		(j, sub_j) <- evalMaybe ("No match in cases: " ++ (pretty e) ++ " of value:" ++ pretty val_p) $
+		(j, sub_j) <- evalMaybe ("No match in cases:\n\t" ++ (pretty e) ++ "\nof value:\n\t" ++ pretty val_p) $
 					 findSubIndex (evalRMatchS val_p) $ map fst matches
 		sub_jt <- disUnion sub_j sub_t
 		val <- evalExpV funcEnv sub_jt $ snd $ matches !! j
 		takenMatches <- (\x -> return $ take x matches) j
 		let takenExpr = map snd takenMatches
 		    leaves_j = concatMap leaves takenExpr
-		evalMaybe ("Return value match in preceding leaves: " ++ pretty val_p) $ checkLeaves evalRMatchS val leaves_j
+		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val_p) $ checkLeaves evalRMatchS val leaves_j
 	where 
 		vars = findVars lExpr
 

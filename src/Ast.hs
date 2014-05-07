@@ -60,6 +60,12 @@ type Ident    = String
 data Value = ConstrV Ident [Value]
            deriving (Show, Eq)
 
+-- Converting a value to a left-expression
+valueToLExpr :: Value -> LExpr
+valueToLExpr (ConstrV ident values) = 
+  Constr ident (map valueToLExpr values)
+
+
 type Error = String
 type Eval a = Either Error a
 
@@ -90,11 +96,4 @@ instance Pretty Expr where
         "case " ++ pretty lExpr ++ " of " ++ "{" ++ concatMap (\(le,e) -> pretty le ++ " -> " ++ pretty e) matches ++ "}"
 
 instance Pretty Value where
-  pretty (ConstrV "Cons" [value1,value2]) = (pretty value1) ++ " : " ++ (pretty value2)
-  pretty (ConstrV "Nil" []) = "[ ]"
-  pretty (ConstrV "Tuple" lExprs) = "{" ++ (concat $ intersperse ", " $ map pretty lExprs) ++ "}"
-  pretty (ConstrV ident []) = ident
-  pretty (ConstrV ident values) = 
-	ident ++ "(" ++ foldl1 (\x y -> x ++ ", " ++ y) vals ++ ")"
-	where
-		vals = map pretty values
+  pretty value = pretty $ valueToLExpr value
