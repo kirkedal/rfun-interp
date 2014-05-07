@@ -20,6 +20,7 @@ import qualified Data.Map as M
 import Control.Monad
 import Control.Applicative
 import Data.Maybe
+import Data.List
 
 evalMaybe :: Error -> Maybe a -> Eval a
 evalMaybe e Nothing = failEval e
@@ -35,27 +36,32 @@ failEval = Left
 valueToLExpr :: Value -> LExpr
 valueToLExpr (ConstrV ident values) = 
 	Constr ident (map valueToLExpr values)
-valueToLExpr (UnTupV  value) = 
-	UnTup (valueToLExpr value)
-valueToLExpr (BinTupV value1 value2) = 
-	BinTup (valueToLExpr value1) (valueToLExpr value2)
+--valueToLExpr (UnTupV  value) = 
+--	UnTup (valueToLExpr value)
+--valueToLExpr (BinTupV value1 value2) = 
+--	BinTup (valueToLExpr value1) (valueToLExpr value2)
 -- valueToLExpr (ConsV value1 value2) = 
 -- 	Cons (valueToLExpr value1) (valueToLExpr value2)
 -- valueToLExpr (EmpLstV) = EmpLst 
 
 valueToString :: Value -> String
+valueToString (ConstrV "Tuple" values) = 
+	"{" ++ (concat $ intersperse ", " vals) ++ "}"
+	where
+		vals = map valueToString values
 valueToString (ConstrV "Cons" [value1,value2]) = 
 	(valueToString value1) ++ " : " ++ (valueToString value2)
 valueToString (ConstrV "Nil" []) = "[ ]"
 valueToString (ConstrV ident []) = ident
 valueToString (ConstrV ident values) = 
-	ident ++ "(" ++ foldl1 (\x y -> x ++ ", " ++ y) vals ++ ")"
+	ident ++ "(" ++ (concat $ intersperse ", " vals) ++ ")"
 	where
 		vals = map valueToString values
-valueToString (UnTupV  value) = 
-	"{" ++ valueToString value ++ "}"
-valueToString (BinTupV value1 value2) = 
-	"{" ++ valueToString value1 ++ ", " ++ valueToString value2 ++ "}"
+--valueToString (UnTupV  value) = 
+--	"{" ++ valueToString value ++ "}"
+--valueToString (BinTupV value1 value2) = 
+--	"{" ++ valueToString value1 ++ ", " ++ valueToString value2 ++ "}"
+
 -- valueToString (ConsV value1 value2) = 
 -- 	(valueToString value1) ++ " : " ++ (valueToString value2)
 -- valueToString (EmpLstV) = "[ ]"
@@ -137,12 +143,16 @@ lookupFunction funcEnv ident =
 -- Eq/Dup operator: Eqs. 3 and 4, p. 17
 evalDupEq :: Value -> Value
 -- Unary tuple is copied
-evalDupEq (UnTupV value) = BinTupV value value
+evalDupEq (ConstrV "Tuple" [value]) = ConstrV "Tuple" [value,value]
+--evalDupEq (UnTupV value) = BinTupV value value
 -- Binary tuple becomes a unary if values are equal, otherwise unchanged
-evalDupEq (BinTupV value1 value2)
-	| value1 == value2 = UnTupV value1
-	| otherwise        = BinTupV value1 value2
-evalDupEq _ = error $ "Value is not a tuple"
+evalDupEq (ConstrV "Tuple" [value1,value2])
+	| value1 == value2 = ConstrV "Tuple" [value1]
+	| otherwise        = ConstrV "Tuple" [value1, value2]
+--evalDupEq (BinTupV value1 value2)
+--	| value1 == value2 = UnTupV value1
+--	| otherwise        = BinTupV value1 value2
+evalDupEq _ = error $ "Value is not a unary or binary tuple"
 
 -- R-Match: Fig. 2, p. 18
 -- Returns a substitution
@@ -154,16 +164,16 @@ evalRMatchS (ConstrV vIdent values) (Constr eIdent lExprs) =
 	if ((length values) == (length lExprs)) && (vIdent == eIdent)
 	then disjointUnions_M $ zipWith evalRMatchS values lExprs
 	else failEval $ "Different constructors " ++ show (ConstrV vIdent values) ++ " |vs| " ++ show (Constr eIdent lExprs)
-evalRMatchS (UnTupV value) (UnTup lExpr) = evalRMatchS value lExpr
-evalRMatchS (BinTupV value1 value2) (BinTup lExpr1 lExpr2) = 
-	disjointUnion_M (evalRMatchS value1 lExpr1) (evalRMatchS value2 lExpr2)
+--evalRMatchS (UnTupV value) (UnTup lExpr) = evalRMatchS value lExpr
+--evalRMatchS (BinTupV value1 value2) (BinTup lExpr1 lExpr2) = 
+--	disjointUnion_M (evalRMatchS value1 lExpr1) (evalRMatchS value2 lExpr2)
 -- evalRMatchS (ConsV value1 value2) (Cons lExpr1 lExpr2) = 
 -- 	disjointUnion_M (evalRMatchS value1 lExpr1) (evalRMatchS value2 lExpr2)
 -- evalRMatchS (EmpLstV) (EmpLst) = return idSub
 -- Dublication / Equality
 evalRMatchS value (DupEq lExpr) = evalRMatchS (evalDupEq value) lExpr
 -- Any other case is an error
-evalRMatchS _ _ = failEval "Case not possible"
+--evalRMatchS _ _ = failEval "Case not possible"
 
 -- Returns a value
 evalRMatchV :: Substitution -> LExpr -> Eval Value
@@ -177,19 +187,19 @@ evalRMatchV sub (Constr eIdent lExprs) =
  	where
 		vars  = map findVars lExprs
 		subs  = mapM (flip divide $ sub) vars
-		subsf = fmap (map fst) subs
-evalRMatchV sub (UnTup lExpr) = 
-		do
-			v <- evalRMatchV sub lExpr
-			return $ UnTupV v
-evalRMatchV sub (BinTup lExpr1 lExpr2) = 
-	do
-		(sub1, sub2) <- divide vars sub 
-		value1 <- evalRMatchV sub1 lExpr1
-		value2 <- evalRMatchV sub2 lExpr2
-		return $ BinTupV value1 value2
-	where
-		vars = findVars lExpr1
+		subsf = liftM (map fst) subs
+--evalRMatchV sub (UnTup lExpr) = 
+--		do
+--			v <- evalRMatchV sub lExpr
+--			return $ UnTupV v
+--evalRMatchV sub (BinTup lExpr1 lExpr2) = 
+--	do
+--		(sub1, sub2) <- divide vars sub 
+--		value1 <- evalRMatchV sub1 lExpr1
+--		value2 <- evalRMatchV sub2 lExpr2
+--		return $ BinTupV value1 value2
+--	where
+--		vars = findVars lExpr1
 -- evalRMatchV sub (Cons lExpr1 lExpr2) = 
 -- 	do
 -- 		(sub1, sub2) <- divide vars sub
@@ -201,7 +211,7 @@ evalRMatchV sub (BinTup lExpr1 lExpr2) =
 -- evalRMatchV _ (EmpLst) = return EmpLstV
 -- Dublication / Equality
 -- Not sure that this makes sense
-evalRMatchV sub (DupEq lExpr) = fmap evalDupEq $ evalRMatchV sub lExpr
+evalRMatchV sub (DupEq lExpr) = liftM evalDupEq $ evalRMatchV sub lExpr
 
 
 -- Function calls: Fig 3, p. 19, FunExp
@@ -270,7 +280,7 @@ evalExpV funcEnv sub (CaseOf lExpr matches) =
 	do
 		(sub_l, sub_t) <- divide vars sub
 		val_p <- evalExpV funcEnv sub_l (LeftE lExpr)
-		(j, sub_j) <- evalMaybe ("No match in cases: " ++ (show matches) ++ " of value:" ++ valueToString val_p) $
+		(j, sub_j) <- evalMaybe ("No match in cases:\n " ++ (show matches) ++ "\n of value:\n" ++ valueToString val_p) $
 					 findSubIndex (evalRMatchS val_p) $ map fst matches
 		sub_jt <- disUnion sub_j sub_t
 		val <- evalExpV funcEnv sub_jt $ snd $ matches !! j
@@ -309,8 +319,8 @@ leaves (CaseOf _ matches)  = concatMap (leaves . snd) matches
 findVars :: LExpr -> [Ident]
 findVars (Var ident)            = [ident]
 findVars (Constr _ lExprs)      = concatMap findVars lExprs
-findVars (UnTup lExpr)          = findVars lExpr
-findVars (BinTup lExpr1 lExpr2) = concatMap findVars [lExpr1, lExpr2]
+--findVars (UnTup lExpr)          = findVars lExpr
+--findVars (BinTup lExpr1 lExpr2) = concatMap findVars [lExpr1, lExpr2]
 -- findVars (Cons lExpr1 lExpr2)   = concatMap findVars [lExpr1, lExpr2]
 -- findVars (EmpLst)               = []
 findVars (DupEq lExpr)          = findVars lExpr

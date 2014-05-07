@@ -98,8 +98,10 @@ expr = LetIn  <$> (keyword "let" *> lexpr)
    <|> LeftE <$> lexpr
 
 lexpr :: Parser LExpr
-lexpr = BinTup <$> (symbol "{" *> lexpr) <*> (symbol "," *> lexpr <* symbol "}")
-    <|> UnTup  <$> parensT lexpr
+lexpr = (\x y -> Constr "Tuple" [x,y]) <$> (symbol "{" *> lexpr) <*> (symbol "," *> lexpr <* symbol "}")
+--      BinTup <$> (symbol "{" *> lexpr) <*> (symbol "," *> lexpr <* symbol "}")
+--    <|> UnTup  <$> parensT lexpr
+    <|> (\x -> Constr "Tuple" [x]) <$> parensT lexpr
     <|> DupEq  <$> parensB lexpr
     <|> Constr <$> constrName <*> parens vars 
     <|> Constr <$> constrName <*> pure []
@@ -134,8 +136,10 @@ program = funDefs
 -- Parsing values
 
 value :: Parser Value
-value = BinTupV <$> (symbol "{" *> value) <*> (symbol "," *> value <* symbol "}")
-    <|> UnTupV  <$> parensT value
+value = (\x y -> ConstrV "Tuple" [x,y]) <$> (symbol "{" *> value) <*> (symbol "," *> value <* symbol "}")
+--      BinTupV <$> (symbol "{" *> value) <*> (symbol "," *> value <* symbol "}")
+--    <|> UnTupV  <$> parensT value
+    <|> (\x -> ConstrV "Tuple" [x]) <$> parensT value
     <|> ConstrV <$> constrName <*> parens vals 
     <|> ConstrV <$> constrName <*> pure []
     <|> parens (chainr1 value cons)
