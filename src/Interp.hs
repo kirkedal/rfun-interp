@@ -126,14 +126,14 @@ lookupFunction funcEnv ident =
 -------------------------------------------------------------------------------
 
 -- Eq/Dup operator: Eqs. 3 and 4, p. 17
-evalDupEq :: Value -> Value
+evalDupEq :: Value -> Eval Value
 -- Unary tuple is copied
-evalDupEq (ConstrV "Tuple" [value]) = ConstrV "Tuple" [value,value]
+evalDupEq (ConstrV "Tuple" [value]) = return $ ConstrV "Tuple" [value,value]
 -- Binary tuple becomes a unary if values are equal, otherwise unchanged
 evalDupEq (ConstrV "Tuple" [value1,value2])
-	| value1 == value2 = ConstrV "Tuple" [value1]
-	| otherwise        = ConstrV "Tuple" [value1, value2]
-evalDupEq _ = error $ "Value is not a unary or binary tuple"
+	| value1 == value2 = return $ ConstrV "Tuple" [value1]
+	| otherwise        = return $ ConstrV "Tuple" [value1, value2]
+evalDupEq _ = failEval "Value is not a unary or binary tuple"
 
 -- R-Match: Fig. 2, p. 18
 -- Returns a substitution
@@ -146,7 +146,9 @@ evalRMatchS (ConstrV vIdent values) (Constr eIdent lExprs) =
 	then disjointUnions_M $ zipWith evalRMatchS values lExprs
 	else failEval $ "Different constructors " ++ show (ConstrV vIdent values) ++ " |vs| " ++ show (Constr eIdent lExprs)
 -- Dublication / Equality
-evalRMatchS value (DupEq lExpr) = evalRMatchS (evalDupEq value) lExpr
+evalRMatchS value (DupEq lExpr) = do
+	dupEq <- evalDupEq value
+	evalRMatchS dupEq lExpr
 
 -- Returns a value
 evalRMatchV :: Substitution -> LExpr -> Eval Value
@@ -162,7 +164,7 @@ evalRMatchV sub (Constr eIdent lExprs) =
 		subs  = mapM (flip divide $ sub) vars
 		subsf = liftM (map fst) subs
 -- Not sure that this makes sense
-evalRMatchV sub (DupEq lExpr) = liftM evalDupEq $ evalRMatchV sub lExpr
+evalRMatchV sub (DupEq lExpr) = evalDupEq =<< evalRMatchV sub lExpr
 
 
 -- Function calls: Fig 3, p. 19, FunExp
