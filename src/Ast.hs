@@ -73,10 +73,11 @@ instance Pretty Func where
 
 instance Pretty LExpr where
   pretty (Var ident) = ident
+  pretty (Constr "Cons" [lExpr1,lExpr2]) = (pretty lExpr1) ++ " : " ++ (pretty lExpr2)
+  pretty (Constr "Nil" []) = "[ ]"
+  pretty (Constr "Tuple" lExprs) = "{" ++ (concat $ intersperse ", " $ map pretty lExprs) ++ "}"
   pretty (Constr eIdent []) = eIdent
   pretty (Constr eIdent lExprs) = eIdent ++ "(" ++ (concat $ intersperse ", " $ map pretty lExprs) ++ ")"
---  pretty (UnTup lExpr) = "{" ++ pretty lExpr ++ "}"
---  pretty (BinTup lExpr1 lExpr2) = "{" ++ pretty lExpr1 ++ ", " ++ pretty lExpr2 ++ "}"
   pretty (DupEq lExpr) = "|" ++ pretty lExpr ++ "|"
 
 instance Pretty Expr where
@@ -89,15 +90,11 @@ instance Pretty Expr where
         "case " ++ pretty lExpr ++ " of " ++ "{" ++ concatMap (\(le,e) -> pretty le ++ " -> " ++ pretty e) matches ++ "}"
 
 instance Pretty Value where
-  pretty (ConstrV "Cons" [value1,value2]) = 
-	(pretty value1) ++ " : " ++ (pretty value2)
+  pretty (ConstrV "Cons" [value1,value2]) = (pretty value1) ++ " : " ++ (pretty value2)
   pretty (ConstrV "Nil" []) = "[ ]"
+  pretty (ConstrV "Tuple" lExprs) = "{" ++ (concat $ intersperse ", " $ map pretty lExprs) ++ "}"
   pretty (ConstrV ident []) = ident
   pretty (ConstrV ident values) = 
 	ident ++ "(" ++ foldl1 (\x y -> x ++ ", " ++ y) vals ++ ")"
 	where
 		vals = map pretty values
- -- pretty (UnTupV  value) = 
-	--"{" ++ pretty value ++ "}"
- -- pretty (BinTupV value1 value2) = 
-	--"{" ++ pretty value1 ++ ", " ++ pretty value2 ++ "}"
