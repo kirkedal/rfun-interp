@@ -1,0 +1,31 @@
+
+--data N = Z | S(n)
+
+inc Z =^= S(Z)
+inc S(np) =^= let npp = inc np in S(npp)
+
+-- fib :: N -> N * N
+fib Z    =^= {S(Z),S(Z)}
+fib S(m) =^= let {x,y} = fib m in
+			 let z = plus {y,x} in z
+
+-- plus :: N * N -> N * N
+plus {x,Z} =^= |{x}|
+plus {x,S(u)} =^= 
+	let {xp,up} = plus {x,u} 
+	in  {xp, S(up)}
+
+-- pack [a] -> [a]
+pack s =^=
+	case s of
+		[] -> []
+		(c1 : r) -> 
+			let s = pack r in
+				case s of
+					[] -> ({c1, S(Z)} : [])
+					(h : t) ->
+						case h of
+							{c2, n} ->
+								case |{c1,c2}| of
+									{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
+									{c} -> ({c, S(n)} : t)

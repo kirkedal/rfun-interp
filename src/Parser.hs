@@ -1,0 +1,162 @@
+----------------------------------------------------------------------
+--- @author Michael Kirkedal Thomsen <kirkedal@acm.org>
+--- @copyright (C) 2013, Michael Kirkedal Thomsen
+--- @doc
+--- Implementation a simple parser for RFun
+--- @end
+--- Created : Dec 2013 by Michael Kirkedal Thomsen <kirkedal@acm.org>
+----------------------------------------------------------------------
+
+module Parser(parseFile, parseString, parseValue, Error) where
+
+import Ast
+import Text.ParserCombinators.ReadP
+import Control.Applicative hiding (many)
+import Control.Monad
+import Data.Char
+import Data.List
+
+type Parser = ReadP
+
+lexeme :: Parser a -> Parser a
+lexeme p = p <* skipAll
+
+skipAll :: Parser ()
+--skipAll = skipMany $ munch1 isSpace
+skipAll = skipMany $ choice [comment, space]
+
+symbol :: String -> Parser String
+symbol = lexeme . string
+
+token :: Parser a -> Parser a
+token p = lexeme p
+
+space :: Parser String
+space = munch1 isSpace
+
+comment :: Parser String
+comment = between (symbol "--") (char '\n') (munch1 isnotendline)
+
+isnotendline :: Char -> Bool
+isnotendline c
+  | c == '\n' = False
+  | otherwise = True
+
+alphaNum :: Parser Char
+alphaNum = satisfy isAlphaNum
+
+upperLetter :: Parser Char
+upperLetter = satisfy isUpper
+
+lowerLetter :: Parser Char
+lowerLetter = satisfy isLower
+
+keyword :: String -> Parser String
+keyword = token . string
+
+parens :: Parser a -> Parser a
+parens p = symbol "(" *> p <* symbol ")"
+
+parensT :: Parser a -> Parser a
+parensT p = symbol "{" *> p <* symbol "}"
+
+parensB :: Parser a -> Parser a
+parensB p = symbol "|" *> p <* symbol "|"
+
+parensS :: Parser a -> Parser a
+parensS p = symbol "[" *> p <* symbol "]"
+
+keywords :: [String]
+keywords = ["let", "rlet", "case", "of", "in"]
+
+ident :: Parser Ident
+ident = token $ do
+         k <- (:) <$> lowerLetter <*> munch (\c -> isAlphaNum c || c == '_')
+         if k `elem` keywords then pfail else return k
+
+
+constrName :: Parser Ident
+constrName = token $ do
+         k <- (:) <$> upperLetter <*> munch (\c -> isAlphaNum c || c == '_')
+         if k `elem` keywords then pfail else return k
+
+cases :: Parser [(LExpr, Expr)]
+cases = some case'
+  where case' = (,) <$> lexpr <*> (symbol "->" *> expr)
+
+expr :: Parser Expr
+expr = LetIn  <$> (keyword "let" *> lexpr)
+              <*> (symbol "=" *> ident)
+              <*> lexpr
+              <*> (keyword "in" *> expr)
+   <|> RLetIn <$> (keyword "rlet" *> lexpr) 
+              <*> (symbol "=" *> ident)
+              <*> lexpr
+              <*> (keyword "in" *> expr)
+   <|> CaseOf <$> (keyword "case" *> lexpr <* keyword "of")
+              <*> cases
+   <|> LeftE <$> lexpr
+
+lexpr :: Parser LExpr
+lexpr = BinTup <$> (symbol "{" *> lexpr) <*> (symbol "," *> lexpr <* symbol "}")
+    <|> UnTup  <$> parensT lexpr
+    <|> DupEq  <$> parensB lexpr
+    <|> Constr <$> constrName <*> parens vars 
+    <|> Constr <$> constrName <*> pure []
+    <|> Var    <$> ident
+    <|> parens (chainr1 lexpr cons)
+    <|> symbol "[]" *> pure EmpLst
+    <|> parens lexpr 
+    where
+      cons = symbol ":" *> pure Cons
+
+someVars :: Parser [LExpr]
+someVars = lexpr `sepBy1` symbol ","
+
+vars :: Parser [LExpr]
+vars = someVars <|> pure []
+
+
+funDef :: Parser Func
+funDef = Func <$> ident <*> lexpr <*> 
+         (symbol "=^=" *> expr )
+
+
+funDefs :: Parser [Func]
+funDefs = many funDef
+
+program :: Parser Program
+program = funDefs
+
+
+-- Parsing values
+
+value :: Parser Value
+value = BinTupV <$> (symbol "{" *> value) <*> (symbol "," *> value <* symbol "}")
+    <|> UnTupV  <$> parensT value
+    <|> ConstrV <$> constrName <*> parens vals 
+    <|> ConstrV <$> constrName <*> pure []
+    <|> parens (chainr1 value cons)
+    <|> symbol "[]" *> pure EmpLstV
+    where
+      cons = symbol ":" >> return ConsV
+
+someVals :: Parser [Value]
+someVals = value `sepBy1` symbol ","
+
+vals :: Parser [Value]
+vals = someVals <|> pure []
+
+parseValue :: String -> Either Error Value
+parseValue s = case find (null . snd) $ readP_to_S (skipAll *> value) s of
+                  Just (x,_) -> Right x
+                  Nothing    -> Left "syntax error in value"
+
+
+parseString :: String -> Either Error Program
+parseString s = case find (null . snd) $ readP_to_S (skipAll *> program) s of
+                  Just (x,_) -> Right x
+                  Nothing    -> Left "syntax error"
+
+parseFile :: FilePath -> IO (Either Error Program)
+parseFile = liftM parseString . readFile
