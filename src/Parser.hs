@@ -35,12 +35,8 @@ space :: Parser String
 space = munch1 isSpace
 
 comment :: Parser String
-comment = between (symbol "--") (char '\n') (munch1 isnotendline)
-
-isnotendline :: Char -> Bool
-isnotendline c
-  | c == '\n' = False
-  | otherwise = True
+comment = string "--" >> manyTill anyChar (char '\n')
+  where anyChar = satisfy (\_ -> True)
 
 alphaNum :: Parser Char
 alphaNum = satisfy isAlphaNum
@@ -107,11 +103,9 @@ lexpr = (\x y -> Constr "Tuple" [x,y]) <$> (symbol "{" *> lexpr) <*> (symbol ","
     <|> Constr <$> constrName <*> pure []
     <|> Var    <$> ident
     <|> parens (chainr1 lexpr cons)
-    -- <|> symbol "[]" *> pure EmpLst
     <|> symbol "[]" *> pure (Constr "Nil" [])
     <|> parens lexpr 
     where
-    --   cons = symbol ":" *> pure Cons
       cons = symbol ":" *> pure (\v1 v2 -> Constr "Cons" [v1,v2])
 
 someVars :: Parser [LExpr]
@@ -143,10 +137,8 @@ value = (\x y -> ConstrV "Tuple" [x,y]) <$> (symbol "{" *> value) <*> (symbol ",
     <|> ConstrV <$> constrName <*> parens vals 
     <|> ConstrV <$> constrName <*> pure []
     <|> parens (chainr1 value cons)
-    -- <|> symbol "[]" *> pure EmpLstV
     <|> symbol "[]" *> pure (ConstrV "Nil" [])
     where
-      -- cons = symbol ":" >> return ConsV
       cons = symbol ":" *> pure (\v1 v2 -> ConstrV "Cons" [v1,v2])
 
 someVals :: Parser [Value]

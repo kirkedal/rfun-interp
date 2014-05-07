@@ -131,7 +131,7 @@ evalRMatchS value (Var ident) = return $ newSub ident value
 evalRMatchS (ConstrV vIdent values) (Constr eIdent lExprs) = 
 	if ((length values) == (length lExprs)) && (vIdent == eIdent)
 	then disjointUnions_M $ zipWith evalRMatchS values lExprs
-	else failEval $ "Different constructors matching value\n\t" ++ valueToString (ConstrV vIdent values) ++ "\n to pattern\n\t" ++ ppLExpr (Constr eIdent lExprs)
+	else failEval $ "Different constructors " ++ show (ConstrV vIdent values) ++ " |vs| " ++ show (Constr eIdent lExprs)
 -- Dublication / Equality
 evalRMatchS value (DupEq lExpr) = do
 	dupEq <- evalDupEq value
@@ -216,18 +216,18 @@ evalExpV funcEnv sub (RLetIn lExpr_in ident lExpr_out expr) =
 		evalExpV funcEnv sub_end expr
 	where 
 		vars = findVars lExpr_in
-evalExpV funcEnv sub (CaseOf lExpr matches) = 
+evalExpV funcEnv sub e@(CaseOf lExpr matches) = 
 	do
 		(sub_l, sub_t) <- divide vars sub
 		val_p <- evalExpV funcEnv sub_l (LeftE lExpr)
-		(j, sub_j) <- evalMaybe ("No match in cases:\n" ++ (ppExpr $ CaseOf lExpr matches) ++ "\n of value:\n" ++ valueToString val_p) $
+		(j, sub_j) <- evalMaybe ("No match in cases: " ++ (pretty e) ++ " of value:" ++ pretty val_p) $
 					 findSubIndex (evalRMatchS val_p) $ map fst matches
 		sub_jt <- disUnion sub_j sub_t
 		val <- evalExpV funcEnv sub_jt $ snd $ matches !! j
 		takenMatches <- (\x -> return $ take x matches) j
 		let takenExpr = map snd takenMatches
 		    leaves_j = concatMap leaves takenExpr
-		evalMaybe ("Return value match in preceding leaves: " ++ valueToString val_p) $ checkLeaves evalRMatchS val leaves_j
+		evalMaybe ("Return value match in preceding leaves: " ++ pretty val_p) $ checkLeaves evalRMatchS val leaves_j
 	where 
 		vars = findVars lExpr
 

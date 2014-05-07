@@ -12,19 +12,15 @@ module Preparse(runPreparse) where
 
 import Ast
 import qualified Data.Map as M
-import qualified Data.Set as S
+import Data.List (nub)
 
 -------------------------------------------------------------------------------
 --- Collecting functions of identical name
 -------------------------------------------------------------------------------
 
--- Remove duplicates from a list
-mkUniq :: Ord a => [a] -> [a]
-mkUniq = S.toList . S.fromList
-
 -- Generates a list of unique function names
 functionList :: Program -> [Ident]
-functionList program = mkUniq $ map funcname program
+functionList program = nub $ map funcname program
 
 -- Generates function environment from a list of functions
 programToFuncEnvSS :: Program -> [(Ident,[Func])]
