@@ -39,26 +39,6 @@ valueToLExpr (UnTupV  value) =
 	UnTup (valueToLExpr value)
 valueToLExpr (BinTupV value1 value2) = 
 	BinTup (valueToLExpr value1) (valueToLExpr value2)
--- valueToLExpr (ConsV value1 value2) = 
--- 	Cons (valueToLExpr value1) (valueToLExpr value2)
--- valueToLExpr (EmpLstV) = EmpLst 
-
-valueToString :: Value -> String
-valueToString (ConstrV "Cons" [value1,value2]) = 
-	(valueToString value1) ++ " : " ++ (valueToString value2)
-valueToString (ConstrV "Nil" []) = "[ ]"
-valueToString (ConstrV ident []) = ident
-valueToString (ConstrV ident values) = 
-	ident ++ "(" ++ foldl1 (\x y -> x ++ ", " ++ y) vals ++ ")"
-	where
-		vals = map valueToString values
-valueToString (UnTupV  value) = 
-	"{" ++ valueToString value ++ "}"
-valueToString (BinTupV value1 value2) = 
-	"{" ++ valueToString value1 ++ ", " ++ valueToString value2 ++ "}"
--- valueToString (ConsV value1 value2) = 
--- 	(valueToString value1) ++ " : " ++ (valueToString value2)
--- valueToString (EmpLstV) = "[ ]"
 
 -------------------------------------------------------------------------------
 --- Substitutions and functions on these
@@ -157,9 +137,6 @@ evalRMatchS (ConstrV vIdent values) (Constr eIdent lExprs) =
 evalRMatchS (UnTupV value) (UnTup lExpr) = evalRMatchS value lExpr
 evalRMatchS (BinTupV value1 value2) (BinTup lExpr1 lExpr2) = 
 	disjointUnion_M (evalRMatchS value1 lExpr1) (evalRMatchS value2 lExpr2)
--- evalRMatchS (ConsV value1 value2) (Cons lExpr1 lExpr2) = 
--- 	disjointUnion_M (evalRMatchS value1 lExpr1) (evalRMatchS value2 lExpr2)
--- evalRMatchS (EmpLstV) (EmpLst) = return idSub
 -- Dublication / Equality
 evalRMatchS value (DupEq lExpr) = evalRMatchS (evalDupEq value) lExpr
 -- Any other case is an error
@@ -190,15 +167,6 @@ evalRMatchV sub (BinTup lExpr1 lExpr2) =
 		return $ BinTupV value1 value2
 	where
 		vars = findVars lExpr1
--- evalRMatchV sub (Cons lExpr1 lExpr2) = 
--- 	do
--- 		(sub1, sub2) <- divide vars sub
--- 		value1 <- evalRMatchV sub1 lExpr1
--- 		value2 <- evalRMatchV sub2 lExpr2
--- 		return $ ConsV value1 value2
--- 	where
-		-- vars = findVars lExpr1
--- evalRMatchV _ (EmpLst) = return EmpLstV
 -- Dublication / Equality
 -- Not sure that this makes sense
 evalRMatchV sub (DupEq lExpr) = fmap evalDupEq $ evalRMatchV sub lExpr
@@ -266,18 +234,18 @@ evalExpV funcEnv sub (RLetIn lExpr_in ident lExpr_out expr) =
 		evalExpV funcEnv sub_end expr
 	where 
 		vars = findVars lExpr_in
-evalExpV funcEnv sub (CaseOf lExpr matches) = 
+evalExpV funcEnv sub e@(CaseOf lExpr matches) = 
 	do
 		(sub_l, sub_t) <- divide vars sub
 		val_p <- evalExpV funcEnv sub_l (LeftE lExpr)
-		(j, sub_j) <- evalMaybe ("No match in cases: " ++ (show matches) ++ " of value:" ++ valueToString val_p) $
+		(j, sub_j) <- evalMaybe ("No match in cases: " ++ (pretty e) ++ " of value:" ++ pretty val_p) $
 					 findSubIndex (evalRMatchS val_p) $ map fst matches
 		sub_jt <- disUnion sub_j sub_t
 		val <- evalExpV funcEnv sub_jt $ snd $ matches !! j
 		takenMatches <- (\x -> return $ take x matches) j
 		let takenExpr = map snd takenMatches
 		    leaves_j = concatMap leaves takenExpr
-		evalMaybe ("Return value match in preceding leaves: " ++ valueToString val_p) $ checkLeaves evalRMatchS val leaves_j
+		evalMaybe ("Return value match in preceding leaves: " ++ pretty val_p) $ checkLeaves evalRMatchS val leaves_j
 	where 
 		vars = findVars lExpr
 
@@ -311,8 +279,6 @@ findVars (Var ident)            = [ident]
 findVars (Constr _ lExprs)      = concatMap findVars lExprs
 findVars (UnTup lExpr)          = findVars lExpr
 findVars (BinTup lExpr1 lExpr2) = concatMap findVars [lExpr1, lExpr2]
--- findVars (Cons lExpr1 lExpr2)   = concatMap findVars [lExpr1, lExpr2]
--- findVars (EmpLst)               = []
 findVars (DupEq lExpr)          = findVars lExpr
 
 -- Running a program

@@ -51,8 +51,6 @@ data LExpr    = Var Ident
               | UnTup LExpr
               | BinTup LExpr LExpr
               | DupEq LExpr
-              -- | EmpLst
-              -- | Cons LExpr LExpr
               deriving (Show, Eq)
 type Ident    = String
 
@@ -63,14 +61,46 @@ type Ident    = String
 data Value = ConstrV Ident [Value]
            | UnTupV  Value
            | BinTupV Value Value
-           -- | ConsV Value Value
-           -- | EmpLstV
            deriving (Show, Eq)
-
 
 type Error = String
 type Eval a = Either Error a
 
 type FuncEnv = M.Map Ident Func
 
+class Pretty a where
+  pretty :: a -> String
 
+instance Pretty Func where
+  pretty (Func funcname param body) = funcname ++ " " ++ pretty param ++ " =^= " ++ pretty body
+
+instance Pretty LExpr where
+  pretty (Var ident) = ident
+  pretty (Constr eIdent []) = eIdent
+  pretty (Constr eIdent lExprs) = eIdent ++ "(" ++ foldl1 (\x y -> x ++ ", " ++ y) (map pretty lExprs) ++ ")"
+  pretty (UnTup lExpr) = "{" ++ pretty lExpr ++ "}"
+  pretty (BinTup lExpr1 lExpr2) = "{" ++ pretty lExpr1 ++ ", " ++ pretty lExpr2 ++ "}"
+  pretty (DupEq lExpr) = "|" ++ pretty lExpr ++ "|"
+
+instance Pretty Expr where
+  pretty (LeftE lExpr) = pretty lExpr
+  pretty (LetIn lExpr_out ident lExpr_in expr) =
+        "let " ++ pretty lExpr_out ++ " = " ++ pretty lExpr_in ++ " in " ++ pretty expr
+  pretty (RLetIn lExpr_in ident lExpr_out expr) =
+        "rlet " ++ pretty lExpr_in ++ " = " ++ pretty lExpr_out ++ " in " ++ pretty expr
+  pretty (CaseOf lExpr matches) =
+        "case " ++ pretty lExpr ++ " of " ++ "{" ++ concatMap (\(le,e) -> pretty le ++ " -> " ++ pretty e) matches ++ "}"
+
+instance Pretty Value where
+  pretty (ConstrV "Cons" [value1,value2]) = 
+	(pretty value1) ++ " : " ++ (pretty value2)
+  pretty (ConstrV "Nil" []) = "[ ]"
+  pretty (ConstrV ident []) = ident
+  pretty (ConstrV ident values) = 
+	ident ++ "(" ++ foldl1 (\x y -> x ++ ", " ++ y) vals ++ ")"
+	where
+		vals = map pretty values
+  pretty (UnTupV  value) = 
+	"{" ++ pretty value ++ "}"
+  pretty (BinTupV value1 value2) = 
+	"{" ++ pretty value1 ++ ", " ++ pretty value2 ++ "}"
