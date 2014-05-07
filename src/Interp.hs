@@ -16,7 +16,6 @@
 module Interp where
 
 import Ast
-import PrettyPrint
 import qualified Data.Map as M
 import Control.Monad
 import Control.Applicative

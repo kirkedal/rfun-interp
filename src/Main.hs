@@ -16,7 +16,6 @@ import Ast
 import Preparse (runPreparse)
 import Interp (runProg)
 import Parser (parseFile, Error, parseValue, parseString)
-import PrettyPrint (valueToString)
 import System.Environment
 import System.Exit
 import System.Timeout
@@ -61,7 +60,7 @@ parseAndRun program value filename =
 		    res = join $ liftM2 (runProg program) val funEnv
 		case res of
 			Left err -> putStrLn err >> (exitWith $ ExitFailure 1)
-			Right r -> putStrLn (valueToString r)
+			Right r -> putStrLn (pretty r)
 parseInput :: String -> IO (Either Error Program)
 parseInput = liftM parseString . loadInput
 
