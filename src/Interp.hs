@@ -1,16 +1,23 @@
-----------------------------------------------------------------------
---- @author Michael Kirkedal Thomsen <kirkedal@acm.org>
---- @copyright (C) 2013, Michael Kirkedal Thomsen
---- @doc
---- Implementation an interpreter for RFun
---- The design is intended to follow closely* the design of the RFun paper:
----   T. Yokoyama, H. B. Axelsen, and R. Gluck
----   Towards a reversible functional language
----   LNCS vol. 7165, pp. 14--29, 2012
---- * I know that there are obvious reader and state monads below.
---- @end
---- Created : Dec 2013 by Michael Kirkedal Thomsen <kirkedal@acm.org>
-----------------------------------------------------------------------
+-----------------------------------------------------------------------------
+--
+-- Module      :  Main
+-- Copyright   :  Michael Kirkedal Thomsen, 2013
+-- License     :  AllRightsReserved
+--
+-- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
+-- Stability   :  
+-- Portability :
+--
+-- |Implementation an interpreter for RFun
+-- 
+-- The design is intended to follow closely* the design of the RFun paper:
+--
+--   T. Yokoyama, H. B. Axelsen, and R. Gluck
+--   Towards a reversible functional language
+--   LNCS vol. 7165, pp. 14--29, 2012
+--
+-- * I know that there are obvious reader and state monads below.
+-----------------------------------------------------------------------------
 
 module Interp where
 
@@ -21,33 +28,36 @@ import Control.Applicative
 import Data.Maybe
 import Data.List
 
+
+-- |Making an Maybe an Eval
 evalMaybe :: Error -> Maybe a -> Eval a
 evalMaybe e Nothing = failEval e
 evalMaybe _ (Just a) = return a
 
+-- |Simple fail
 failEval = Left
 
 -------------------------------------------------------------------------------
 --- Substitutions and functions on these
 -------------------------------------------------------------------------------
--- A substitution is a mapping from a Ident (string) to a value
+-- |A substitution is a mapping from a Ident (string) to a value
 type Substitution = M.Map Ident Value
 
--- Make a substution of one variable
+-- |Make a substution of one variable
 idSub :: Substitution
 idSub = M.empty
 
--- Make a substution of one variable
+-- |Make a substution of one variable
 newSub :: Ident -> Value -> Substitution
 newSub ident value = M.singleton ident value
 
--- Lookup a value in a substitution
+-- |Lookup a value in a substitution
 lookupValue :: Ident -> Substitution -> Eval Value
 lookupValue ident sub 
 	| M.size sub == 1  = evalMaybe ("Variable "++ ident ++" not found") $ M.lookup ident sub
 	| otherwise        = failEval "Substitution is not singleton"
 
--- Divides a substitution into two. First part contains the mappings contained
+-- |Divides a substitution into two. First part contains the mappings contained
 -- in the list of Idents, the second does not. 
 divide :: [Ident] -> Substitution -> Eval (Substitution, Substitution)
 divide idents sub = 
@@ -57,7 +67,7 @@ divide idents sub =
 	where
 		(sub1, sub2) = M.partitionWithKey (\k _ -> elem k idents) sub
 
--- Lookup a value in a substitution
+-- |Lookup a value in a substitution
 lookupDivide :: Ident -> Substitution -> Eval (Value, Substitution)
 lookupDivide ident sub = 
 	do
@@ -65,7 +75,7 @@ lookupDivide ident sub =
 		value <- lookupValue ident singleton
 	 	return (value, rest)
 
--- Finds the disjoint union between two substitutions
+-- |Finds the disjoint union between two substitutions
 disUnion :: Substitution -> Substitution -> Eval Substitution
 disUnion subs1 subs2 = 
 	if union_size == subs1_size + subs2_size
@@ -77,11 +87,11 @@ disUnion subs1 subs2 =
 		subs1_size = M.size subs1
 		subs2_size = M.size subs2
 
--- Finds the union between two disjoint substitutions (no overlap in idents). 
+-- |Finds the union between two disjoint substitutions (no overlap in idents). 
 disjointUnion_M :: Eval Substitution -> Eval Substitution -> Eval Substitution
 disjointUnion_M subs1 subs2 = join $ liftM2 disUnion subs1 subs2
 
--- Finds the union between a list of disjoint substitutions.
+-- |Finds the union between a list of disjoint substitutions.
 disjointUnions_M :: [Eval Substitution] -> Eval Substitution
 disjointUnions_M subs = foldl disjointUnion_M (return idSub) subs
 
@@ -90,6 +100,7 @@ disjointUnions_M subs = foldl disjointUnion_M (return idSub) subs
 --- Program functions
 -------------------------------------------------------------------------------
 
+-- |Lookup a function in the function environment
 lookupFunction :: FuncEnv -> Ident -> Eval (LExpr, Expr)
 lookupFunction funcEnv ident = 
 	case M.lookup ident funcEnv of 
@@ -101,7 +112,7 @@ lookupFunction funcEnv ident =
 --- The interpreter
 -------------------------------------------------------------------------------
 
--- Eq/Dup operator: Eqs. 3 and 4, p. 17
+-- |Eq/Dup operator (Eqs. 3 and 4, p. 17)
 evalDupEq :: Value -> Eval Value
 -- Unary tuple is copied
 evalDupEq (ConstrV "Tuple" [value]) = return $ ConstrV "Tuple" [value,value]
@@ -111,7 +122,7 @@ evalDupEq (ConstrV "Tuple" [value1,value2])
 	| otherwise        = return $ ConstrV "Tuple" [value1, value2]
 evalDupEq _ = failEval "Value is not a unary or binary tuple"
 
--- R-Match: Fig. 2, p. 18
+-- |R-Match (Fig. 2, p. 18) that returns a substitution.
 -- Returns a substitution
 evalRMatchS :: Value -> LExpr -> Eval Substitution
 -- Single variable resulting in a signleton substitusion
@@ -126,7 +137,7 @@ evalRMatchS value (DupEq lExpr) = do
 	dupEq <- evalDupEq value
 	evalRMatchS dupEq lExpr
 
--- Returns a value
+-- |R-Match (Fig. 2, p. 18) that returns a value
 evalRMatchV :: Substitution -> LExpr -> Eval Value
 -- Single variable resulting in a single value
 evalRMatchV sub (Var ident) = lookupValue ident sub
@@ -143,7 +154,7 @@ evalRMatchV sub (Constr eIdent lExprs) =
 evalRMatchV sub (DupEq lExpr) = evalDupEq =<< evalRMatchV sub lExpr
 
 
--- Function calls: Fig 3, p. 19, FunExp
+-- |Function calls: Fig 3, p. 19, FunExp
 -- Function calls in a sub part of lets
 evalFunS :: FuncEnv -> Ident -> LExpr -> Value -> Eval Substitution
 evalFunS funcEnv ident lExpr value =
@@ -152,7 +163,8 @@ evalFunS funcEnv ident lExpr value =
 		sub_f <- evalExpS funcEnv exprFun value
 		val_p <-  evalRMatchV sub_f lExprFun
 		evalExpS funcEnv (LeftE lExpr) val_p
-	
+
+-- |Function calls that returns a value
 evalFunV :: FuncEnv -> Substitution -> Ident -> LExpr -> Eval Value
 evalFunV funcEnv sub ident lExpr =
 	do
@@ -161,7 +173,7 @@ evalFunV funcEnv sub ident lExpr =
 		sub_f <- evalRMatchS val_p lExprFun
 		evalExpV funcEnv sub_f exprFun
 
--- Expressions: Fig 3, p. 19 (not FunExp)
+-- |Expressions: Fig 3, p. 19 (not FunExp) that returns substitution
 evalExpS :: FuncEnv -> Expr -> Value -> Eval Substitution
 evalExpS _ (LeftE lExpr) value = evalRMatchS value lExpr
 evalExpS funcEnv (LetIn lExpr_out ident lExpr_in expr) value =
@@ -185,6 +197,7 @@ evalExpS funcEnv (RLetIn lExpr_in ident lExpr_out expr) value =
 evalExpS _ (CaseOf _ _) _ = 
 	failEval "Cases that return substitutions are never used"
 
+-- |Expressions: Fig 3, p. 19 (not FunExp) that returns value
 evalExpV :: FuncEnv -> Substitution -> Expr -> Eval Value
 evalExpV _ sub (LeftE lExpr) = evalRMatchV sub lExpr
 evalExpV funcEnv sub (LetIn lExpr_out ident lExpr_in expr) =
@@ -221,14 +234,14 @@ evalExpV funcEnv sub e@(CaseOf lExpr matches) =
 		vars = findVars lExpr
 
 
--- This function is helper for the caseOf
+-- |This function is helper for the caseOf
 checkLeaves :: (Value -> LExpr -> Eval c) -> Value -> [LExpr] -> Maybe Value
 checkLeaves _ val []          = return (val)
 checkLeaves func val (l:list) =
 		either (\_ -> checkLeaves func val list) (\_ -> Nothing) $ func val l
 
--- The list is indexed from 0!!!!
--- Different from the paper
+-- | Finds the minimum index of a case-leave to which a eval-function matches.
+-- The list is indexed from 0; different from the paper!!!!
 findSubIndex :: (a -> Eval b) -> [a] -> Maybe (Int, b)
 findSubIndex func list =
 	findSubIndex_h 0 func list
@@ -237,20 +250,20 @@ findSubIndex func list =
 		findSubIndex_h i f (l:ls) = 
 			either (\_ -> (findSubIndex_h (i+1) f ls)) (\r -> return (i,r)) (f l)
 
--- As defined in Footnote 1, p 19.
+-- |As defined in Footnote 1, p 19.
 leaves :: Expr -> [LExpr]
 leaves (LeftE lExpr)       = [lExpr]
 leaves (LetIn _ _ _ expr)  = leaves expr
 leaves (RLetIn _ _ _ expr) = leaves expr
 leaves (CaseOf _ matches)  = concatMap (leaves . snd) matches
 
--- Finds the list of all variables in a left expression
+-- |Finds the list of all variables in a left expression
 findVars :: LExpr -> [Ident]
 findVars (Var ident)            = [ident]
 findVars (Constr _ lExprs)      = concatMap findVars lExprs
 findVars (DupEq lExpr)          = findVars lExpr
 
--- Running a program
+-- |Interpreting an rFun program
 runProg :: Ident -> Value -> FuncEnv -> Eval Value
 runProg ident value funcEnv = 
 	evalFunV funcEnv idSub ident (valueToLExpr value)

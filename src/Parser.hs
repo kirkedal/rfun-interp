@@ -1,13 +1,18 @@
-----------------------------------------------------------------------
---- @author Michael Kirkedal Thomsen <kirkedal@acm.org>
---- @copyright (C) 2013, Michael Kirkedal Thomsen
---- @doc
---- Implementation a simple parser for RFun
---- @end
---- Created : Dec 2013 by Michael Kirkedal Thomsen <kirkedal@acm.org>
-----------------------------------------------------------------------
+-----------------------------------------------------------------------------
+--
+-- Module      :  Main
+-- Copyright   :  Michael Kirkedal Thomsen, 2013
+-- License     :  AllRightsReserved
+--
+-- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
+-- Stability   :  
+-- Portability :
+--
+-- |Implementation a simple parser for RFun
+--
+-----------------------------------------------------------------------------
 
-module Parser(parseFile, parseString, parseValue, Error) where
+module Parser(parseFile, parseString, parseValue) where
 
 import Ast
 import Text.ParserCombinators.ReadP

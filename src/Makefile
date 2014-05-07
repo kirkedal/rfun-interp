@@ -3,6 +3,9 @@ FILES=Ast.hs Interp.hs Main.hs Parser.hs Preparse.hs
 rfun: $(FILES)
 	ghc --make Main.hs
 
+haddock, h: $(FILES)
+	haddock -h -o ../docs/ Main.hs
+
 clean:
 	rm -f $(subst .hs,.o,$(FILES))
 	rm -f $(subst .hs,.hi,$(FILES))

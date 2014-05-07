@@ -1,15 +1,17 @@
-----------------------------------------------------------------------
---- @author Michael Kirkedal Thomsen <kirkedal@acm.org>
---- @copyright (C) 2013, Michael Kirkedal Thomsen
---- @doc
---- Abstract syntax tree for RFun
----   T. Yokoyama, H. B. Axelsen, and R. Gluck
----   Towards a reversible functional language
----   LNCS vol. 7165, pp. 14--29, 2012
---- @end
---- Created : Dec 2013 by Michael Kirkedal Thomsen <kirkedal@acm.org>
-----------------------------------------------------------------------
-
+-----------------------------------------------------------------------------
+--
+-- Module      :  Main
+-- Copyright   :  Michael Kirkedal Thomsen, 2013
+-- License     :  AllRightsReserved
+--
+-- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
+-- Stability   :  
+-- Portability :
+--
+-- |Abstract syntax tree for RFun
+--
+-- The language is based on, to which the are make references in the comments:
+--
 -- Grammar:                                         
 -- q ::= d*                           (program)
 -- d ::= f l 􏰟 e                     (definition)
@@ -31,6 +33,8 @@
 -- c ∈ Constructors
 --
 -- Abstract syntax of the first-order functional language (n ≥ 0, m ≥ 1) The Language
+--
+-----------------------------------------------------------------------------
 
 module Ast where
 
@@ -54,23 +58,26 @@ data LExpr    = Var Ident
 type Ident    = String
 
 
--- A value (p. 16) is defined as
+-- |A value (p. 16) is defined as
 -- * a constructor of 0 or more values
 -- * with two special case constructors of singleton and tuple
 data Value = ConstrV Ident [Value]
            deriving (Show, Eq)
 
--- Converting a value to a left-expression
+-- |Converting a value to a left-expression
 valueToLExpr :: Value -> LExpr
 valueToLExpr (ConstrV ident values) = 
   Constr ident (map valueToLExpr values)
 
-
+-- |An error is a String
 type Error = String
+-- |Evaluating with return either a result of an Error
 type Eval a = Either Error a
 
+-- |Function environments (to be used later) is a mapping from Identifiers to a Function
 type FuncEnv = M.Map Ident Func
 
+-- |Pretty for showing programs and values
 class Pretty a where
   pretty :: a -> String
 
