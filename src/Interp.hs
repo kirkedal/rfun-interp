@@ -51,11 +51,11 @@ runProg ident value funcEnv =
 -- |A substitution is a mapping from a Ident (string) to a value
 type Substitution = M.Map Ident Value
 
--- |Make a substution of one variable
+-- |Make a empty substitution
 idSub :: Substitution
 idSub = M.empty
 
--- |Make a substution of one variable
+-- |Make a substitution of one variable
 newSub :: Ident -> Value -> Substitution
 newSub ident value = M.singleton ident value
 
@@ -66,7 +66,7 @@ lookupValue ident sub
 	| otherwise        = failEval "Substitution is not singleton"
 
 -- |Divides a substitution into two. First part contains the mappings contained
--- in the list of Idents, the second does not. 
+--  in the list of Idents, the second the rest. 
 divide :: [Ident] -> Substitution -> Eval (Substitution, Substitution)
 divide idents sub = 
 	if M.size sub1 == length idents
@@ -75,7 +75,8 @@ divide idents sub =
 	where
 		(sub1, sub2) = M.partitionWithKey (\k _ -> elem k idents) sub
 
--- |Lookup a value in a substitution
+-- |Lookup a value in a substitution. Returns the value of the identifier and
+--  the substitution with the identifier removed.
 lookupDivide :: Ident -> Substitution -> Eval (Value, Substitution)
 lookupDivide ident sub = 
 	do
