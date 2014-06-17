@@ -28,7 +28,6 @@ import System.Environment
 import System.Exit
 import System.Timeout
 import Control.Monad
-import Control.Exception (try, evaluate, catch)
 
 import Data.List
 
@@ -45,7 +44,7 @@ main =
 						Nothing -> exitWith $ ExitFailure 124
 						_       -> return ()
 			[filename] -> parseAndPre filename
-			_ -> putStrLn "Bad args. Usage: \"main\" startfunc startvalue programfile"
+			_ -> putStrLn "Bad args. Usage: \"main\" startfunc startvalue programfile\nor to stop before interpretation: \"main\" programfile "
 
 
 parseAndRun :: String -> String -> String -> IO ()

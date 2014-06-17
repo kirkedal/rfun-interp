@@ -67,7 +67,6 @@ move {(x:xs),l,S(s)} =^=
 	let {ys,ls,s'} = move {xs,(x:l),s} 
 	in  {ys,ls,S(s')}
 
-
 length [] =^= {Z,[]}
 length (x:xs) =^=
 	let {l,xs'} = length xs

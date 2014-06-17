@@ -16,7 +16,7 @@
 --    Towards a reversible functional language
 --    LNCS vol. 7165, pp. 14--29, 2012
 --
--- * I know that there are obvious reader and state monads below.
+-- * I know that there are obvious reader below.
 -----------------------------------------------------------------------------
 
 module Interp where
@@ -205,7 +205,7 @@ evalExpS funcEnv (RLetIn lExpr_in ident lExpr_out expr) value =
 		vars = findVars lExpr_out
 evalExpS funcEnv e@(CaseOf lExpr matches) value = 
 	do  
-		(j, _) <- evalMaybe ("No match in cases:\n\t" ++ (pretty e) ++ "\nof value:\n\t" ++ pretty value) $
+		(j, _) <- evalMaybe ("No match in leaves of cases:\n\t" ++ (pretty e) ++ "\nof value:\n\t" ++ pretty value) $
 						findSubIndex (evalRMatchS value) $ concatMap (\(x,y) -> zip (repeat x) y) allLeaves
 		sub_jt <- evalExpS funcEnv (snd $ matches !! j) value
 		let lExpr_j = fst $ matches !! j
@@ -214,7 +214,6 @@ evalExpS funcEnv e@(CaseOf lExpr matches) value =
 		val_p <- evalRMatchV sub_j lExpr_j
 		sub_l <- evalExpS funcEnv (LeftE lExpr) val_p
 		disUnion sub_l sub_t
-		--failEval $ "Cases that return substitutions are never used:\n" ++ show (concatMap (\(x,y) -> zip (repeat x) y) allLeaves) ++ "\n" ++ show value ++ "\n" ++ show j
 	where 
 		allLeaves = zip [0..] $ map (leaves.snd) matches
 
