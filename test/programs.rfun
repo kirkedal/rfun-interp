@@ -2,12 +2,50 @@
 --data N = Z | S(n)
 
 inc Z =^= S(Z)
-inc S(np) =^= let npp = inc np in S(npp)
+inc S(np) =^= 
+		let npp = inc np 
+		in  S(npp)
 
 -- fib :: N -> N * N
 fib Z    =^= {S(Z),S(Z)}
-fib S(m) =^= let {x,y} = fib m in
-			 let z = plus {y,x} in z
+fib S(m) =^= 
+		let {x,y} = fib m 
+		in  let z = plus {y,x} 
+				in z
+
+--	fib Z    =^= {S(Z),S(Z)}
+-- 	fib S(m) =^= 
+--			let {x,y} = fib m 
+--			in  plus {y,x}
+
+-- Haskell like combinations
+--	fib Z    =^= {S(Z),S(Z)}
+-- 	fib S(m) =^= plus $ swap $ fib m
+
+-- swap :: a * b -> b * a
+swap {x,y} =^= {y,x}
+
+-- scanr {}
+scanr {i,[]}      =^= {i,[]}
+scanr {i, (x:xs)} =^= 
+  let {i', x'} = plus {i,x}
+  in  let {x'',l} = scanr {x', xs}
+      in  {i',(x'':l)}
+-- 
+scanl {i,[]}      =^= {i,[]}
+scanl {i,[x]}     =^= 
+	let {i', x'} = plus {i,x}
+	in {i', [x']}
+scanl {i, (x:z:xs)} =^= 
+	let {i', (y:ys)} = scanl {i,(z:xs)}
+	in  let {y',x'} = plus {y,x}
+	    in {i', (x':y':ys)}
+
+map [] =^= []
+map (x:xs) =^= 
+	let x' = inc x
+	in  let xs' = map xs
+	    in (x':xs')
 
 -- plus :: N * N -> N * N
 plus {x,Z} =^= |{x}|
@@ -15,17 +53,16 @@ plus {x,S(u)} =^=
 	let {xp,up} = plus {x,u} 
 	in  {xp, S(up)}
 
--- pack [a] -> [a]
-pack s =^=
-	case s of
-		[] -> []
-		(c1 : r) -> 
-			let s = pack r in
-				case s of
-					[] -> ({c1, S(Z)} : [])
-					(h : t) ->
-						case h of
-							{c2, n} ->
-								case |{c1,c2}| of
-									{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
-									{c} -> ({c, S(n)} : t)
+-- pack :: Eq a => [a] -> [a * N]
+pack [] =^= []
+pack (c1 : r) =^=
+		let s = pack r in
+			case s of
+				[] -> ({c1, S(Z)} : [])
+				(h : t) ->
+					case h of
+						{c2, n} ->
+							case |{c1,c2}| of
+								{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
+								{c} -> ({c, S(n)} : t)
+
