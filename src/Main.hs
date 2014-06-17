@@ -51,8 +51,8 @@ main =
 parseAndRun :: String -> String -> String -> IO ()
 parseAndRun program value filename =
 	do
-		prg    <- fromError =<< parseInput filename
-		val    <- fromError =<< parseValue value
+		prg    <- fromParsecError =<< parseInput filename
+		val    <- fromParsecError =<< parseValue value
 		let funEnv = runPreparse prg
 		res    <- fromError =<< return (runProg program val funEnv)
 		putStrLn $ pretty res
@@ -60,7 +60,7 @@ parseAndRun program value filename =
 parseAndPre :: String -> IO ()
 parseAndPre filename =
 	do
-		prg    <- fromError =<< parseInput filename
+		prg    <- fromParsecError =<< parseInput filename
 		let funEnv = runPreparse prg
 		putStrLn $ prettyFuncEnv funEnv
 
@@ -68,6 +68,10 @@ parseInput :: String -> IO (Either ParseError Program)
 parseInput "-"  = parseString =<< getContents
 parseInput file = parseFromFile file
 
-fromError :: Show a => Either a b -> IO b
-fromError (Left err) = putStrLn (show err) >> (exitWith $ ExitFailure 1)
+fromParsecError :: Either ParseError a -> IO a
+fromParsecError (Left err) = putStr ((show err) ++ "\n") >> (exitWith $ ExitFailure 1)
+fromParsecError (Right a)  = return a
+
+fromError :: Eval a -> IO a
+fromError (Left err) = putStr (err ++ "\n") >> (exitWith $ ExitFailure 1)
 fromError (Right a)  = return a

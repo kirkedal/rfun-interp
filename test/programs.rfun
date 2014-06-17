@@ -45,7 +45,7 @@ map [] =^= []
 map (x:xs) =^= 
 	let x' = inc x
 	    xs' = map xs
-	    in (x':xs')
+	in  (x':xs')
 
 -- plus :: N * N -> N * N
 plus {x,Z} =^= |{x}|
