@@ -71,7 +71,7 @@ divide :: [Ident] -> Substitution -> Eval (Substitution, Substitution)
 divide idents sub = 
 	if M.size sub1 == length idents
 	then return (sub1, sub2)
-	else failEval $ "Variables not found when dividing"
+	else failEval $ "Variables not found when dividing:\n\t" ++ show idents
 	where
 		(sub1, sub2) = M.partitionWithKey (\k _ -> elem k idents) sub
 
@@ -203,8 +203,20 @@ evalExpS funcEnv (RLetIn lExpr_in ident lExpr_out expr) value =
 		disUnion sub_in sub_e
 	where
 		vars = findVars lExpr_out
-evalExpS _ (CaseOf _ _) _ = 
-	failEval "Cases that return substitutions are never used"
+evalExpS funcEnv e@(CaseOf lExpr matches) value = 
+	do  
+		(j, _) <- evalMaybe ("No match in cases:\n\t" ++ (pretty e) ++ "\nof value:\n\t" ++ pretty value) $
+						findSubIndex (evalRMatchS value) $ concatMap (\(x,y) -> zip (repeat x) y) allLeaves
+		sub_jt <- evalExpS funcEnv (snd $ matches !! j) value
+		let lExpr_j = fst $ matches !! j
+		    vars_j = findVars lExpr_j
+		(sub_j, sub_t) <- divide vars_j sub_jt
+		val_p <- evalRMatchV sub_j lExpr_j
+		sub_l <- evalExpS funcEnv (LeftE lExpr) val_p
+		disUnion sub_l sub_t
+		--failEval $ "Cases that return substitutions are never used:\n" ++ show (concatMap (\(x,y) -> zip (repeat x) y) allLeaves) ++ "\n" ++ show value ++ "\n" ++ show j
+	where 
+		allLeaves = zip [0..] $ map (leaves.snd) matches
 
 -- |Expressions: Fig 3, p. 19 (not FunExp) that returns value
 evalExpV :: FuncEnv -> Substitution -> Expr -> Eval Value
@@ -232,13 +244,13 @@ evalExpV funcEnv sub e@(CaseOf lExpr matches) =
 		(sub_l, sub_t) <- divide vars sub
 		val_p <- evalExpV funcEnv sub_l (LeftE lExpr)
 		(j, sub_j) <- evalMaybe ("No match in cases:\n\t" ++ (pretty e) ++ "\nof value:\n\t" ++ pretty val_p) $
-					 findSubIndex (evalRMatchS val_p) $ map fst matches
+					 findSubIndex (evalRMatchS val_p) $ zip ([0..]) (map fst matches)
 		sub_jt <- disUnion sub_j sub_t
 		val <- evalExpV funcEnv sub_jt $ snd $ matches !! j
 		takenMatches <- (\x -> return $ take x matches) j
 		let takenExpr = map snd takenMatches
 		    leaves_j = concatMap leaves takenExpr
-		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val_p) $ checkLeaves evalRMatchS val leaves_j
+		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val) $ checkLeaves evalRMatchS val leaves_j
 	where 
 		vars = findVars lExpr
 
@@ -250,13 +262,13 @@ checkLeaves func val (l:list) =
 
 -- | Finds the minimum index of a case-leave to which a eval-function matches.
 -- The list is indexed from 0; different from the paper!!!!
-findSubIndex :: (a -> Eval b) -> [a] -> Maybe (Int, b)
+findSubIndex :: (a -> Eval b) -> [(Int,a)] -> Maybe (Int, b)
 findSubIndex func list =
-	findSubIndex_h 0 func list
+	findSubIndex_h func list
 	where
-		findSubIndex_h _ _ [] = Nothing
-		findSubIndex_h i f (l:ls) = 
-			either (\_ -> (findSubIndex_h (i+1) f ls)) (\r -> return (i,r)) (f l)
+		findSubIndex_h _ [] = Nothing
+		findSubIndex_h f (l:ls) = 
+			either (\_ -> (findSubIndex_h f ls)) (\r -> return (fst l,r)) (f $ snd l)
 
 -- |As defined in Footnote 1, p 19.
 leaves :: Expr -> [LExpr]
