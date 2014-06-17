@@ -29,22 +29,22 @@ swap {x,y} =^= {y,x}
 scanr {i,[]}      =^= {i,[]}
 scanr {i, (x:xs)} =^= 
   let {i', x'} = plus {i,x}
-  in  let {x'',l} = scanr {x', xs}
-      in  {i',(x'':l)}
+      {x'',l} = scanr {x', xs}
+  in  {i',(x'':l)}
 -- 
 scanl {i,[]}      =^= {i,[]}
 scanl {i,[x]}     =^= 
 	let {i', x'} = plus {i,x}
-	in {i', [x']}
+	in  {i', [x']}
 scanl {i, (x:z:xs)} =^= 
 	let {i', (y:ys)} = scanl {i,(z:xs)}
 	    {y',x'} = plus {y,x}
-	    in {i', (x':y':ys)}
+	in  {i', (x':y':ys)}
 
 map [] =^= []
 map (x:xs) =^= 
 	let x' = inc x
-	in  let xs' = map xs
+	    xs' = map xs
 	    in (x':xs')
 
 -- plus :: N * N -> N * N

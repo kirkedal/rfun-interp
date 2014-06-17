@@ -52,7 +52,9 @@ data Func     = Func { funcname  :: Ident
 -- |An expression is
 data Expr     = LeftE LExpr                       -- ^ Left-expression
               | LetIn LExpr Ident LExpr Expr      -- ^ Let-binding
+              | LetIns [(LExpr, Ident, LExpr)] Expr      -- ^ Let-binding
               | RLetIn LExpr Ident LExpr Expr     -- ^ Let-binding with reverse function call
+              | RLetIns [(LExpr, Ident, LExpr)] Expr     -- ^ Let-binding with reverse function call
               | CaseOf LExpr [(LExpr, Expr)]      -- ^ Case-of expression
               | ApplyE Ident LExpr
               deriving (Show, Eq)
@@ -84,7 +86,7 @@ type Eval a = Either Error a
 type FuncEnv = M.Map Ident Func
 
 prettyFuncEnv funcEnv = 
-  intercalate "\n\n" $ map (pretty.snd) $ M.toList funcEnv
+  intercalate "\n" $ map (pretty.snd) $ M.toList funcEnv
 
 -- |Pretty for showing programs and values
 class Pretty a where

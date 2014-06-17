@@ -124,21 +124,20 @@ expr :: LangParser Expr
 expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
     where
         letin  = do reserved "let"
-                    leout <- lexpr
-                    symbol "="
-                    fun <- identifier
-                    lein <- lexpr
+                    l <- many1 assign
                     reserved "in"
                     e <- expr
-                    return $ LetIn leout fun lein e
+                    return $ LetIns l e
         rletin = do reserved "rlet"
-                    lein <- lexpr
-                    symbol "="
-                    fun <- identifier
-                    leout <- lexpr
+                    l <- many1 assign
                     reserved "in"
                     e <- expr
-                    return $ RLetIn lein fun leout e
+                    return $ RLetIns l e
+        assign = do leout <- lexpr ; 
+                    symbol "=" ; 
+                    fun <- identifier ; 
+                    lein <- lexpr ; 
+                    return $ (leout, fun, lein) 
         caseof = do reserved "case"
                     le <- lexpr
                     reserved "of"

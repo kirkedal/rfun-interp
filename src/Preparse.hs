@@ -29,8 +29,9 @@ import Data.List (nub)
 runPreparse :: Program -> FuncEnv
 runPreparse program = M.fromList funcEnv
 	where
-		program2 = applyToFunctionBody desugarApplyInExpr program
-		funcEnvSS = programToFuncEnvSS program2
+		program2 = applyToFunctionBody desugarManyLetIn program
+		program3 = applyToFunctionBody desugarApplyInExpr program2
+		funcEnvSS = programToFuncEnvSS program3
 		funcEnv = desugarArgPatMatch funcEnvSS
 
 applyToFunctionBody :: (Expr -> Expr) -> Program -> Program
@@ -80,5 +81,24 @@ desugarApplyInExpr (ApplyE ident lExpr) =
 	LetIn (Var "_tmp") ident lExpr (LeftE (Var "_tmp"))
 desugarApplyInExpr e = e
 
+-------------------------------------------------------------------------------
+-- ** De-sugar many let assignments
+-------------------------------------------------------------------------------
+desugarManyLetIn :: Expr -> Expr
+desugarManyLetIn (LetIns lets expr) =
+	foldr (\(lExpr1, ident, lExpr2) e -> LetIn lExpr1 ident lExpr2 e) exprDS lets
+	where 
+		exprDS = desugarManyLetIn expr
+desugarManyLetIn (RLetIns lets expr) =
+	foldr (\(lExpr1, ident, lExpr2) e -> RLetIn lExpr1 ident lExpr2 e) exprDS lets
+	where 
+		exprDS = desugarManyLetIn expr
+desugarManyLetIn (LetIn lExpr1 ident lExpr2 expr) =
+	LetIn lExpr1 ident lExpr2 $ desugarManyLetIn expr
+desugarManyLetIn (RLetIn lExpr1 ident lExpr2 expr) =
+	RLetIn lExpr1 ident lExpr2 $ desugarManyLetIn expr
+desugarManyLetIn (CaseOf lExpr cases) =
+	CaseOf lExpr $ map (\(le,e) -> (le, desugarManyLetIn e)) cases
+desugarManyLetIn e = e
 
 
