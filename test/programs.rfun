@@ -7,16 +7,16 @@ inc S(np) =^=
 		in  S(npp)
 
 -- fib :: N -> N * N
+--fib Z    =^= {S(Z),S(Z)}
+--fib S(m) =^= 
+--		let {x,y} = fib m 
+--		in  let z = plus {y,x}
+--				in z
+
 fib Z    =^= {S(Z),S(Z)}
 fib S(m) =^= 
 		let {x,y} = fib m 
-		in  let z = plus {y,x} 
-				in z
-
---	fib Z    =^= {S(Z),S(Z)}
--- 	fib S(m) =^= 
---			let {x,y} = fib m 
---			in  plus {y,x}
+		in plus {y,x}
 
 -- Haskell like combinations
 --	fib Z    =^= {S(Z),S(Z)}
@@ -38,7 +38,7 @@ scanl {i,[x]}     =^=
 	in {i', [x']}
 scanl {i, (x:z:xs)} =^= 
 	let {i', (y:ys)} = scanl {i,(z:xs)}
-	in  let {y',x'} = plus {y,x}
+	    {y',x'} = plus {y,x}
 	    in {i', (x':y':ys)}
 
 map [] =^= []

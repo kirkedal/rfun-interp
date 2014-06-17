@@ -54,6 +54,7 @@ data Expr     = LeftE LExpr                       -- ^ Left-expression
               | LetIn LExpr Ident LExpr Expr      -- ^ Let-binding
               | RLetIn LExpr Ident LExpr Expr     -- ^ Let-binding with reverse function call
               | CaseOf LExpr [(LExpr, Expr)]      -- ^ Case-of expression
+              | ApplyE Ident LExpr
               deriving (Show, Eq)
 -- |A left-expression is
 data LExpr    = Var Ident                         -- ^ Variable
@@ -82,12 +83,15 @@ type Eval a = Either Error a
 -- |Function environments (to be used later) is a mapping from Identifiers to a Function
 type FuncEnv = M.Map Ident Func
 
+prettyFuncEnv funcEnv = 
+  intercalate "\n\n" $ map (pretty.snd) $ M.toList funcEnv
+
 -- |Pretty for showing programs and values
 class Pretty a where
   pretty :: a -> String
 
 instance Pretty Func where
-  pretty (Func funcname param body) = funcname ++ " " ++ pretty param ++ " =^= " ++ pretty body
+  pretty (Func funcname param body) = funcname ++ " " ++ pretty param ++ " =^= \n" ++ pretty body
 
 instance Pretty LExpr where
   pretty (Var ident) = ident
@@ -101,11 +105,11 @@ instance Pretty LExpr where
 instance Pretty Expr where
   pretty (LeftE lExpr) = pretty lExpr
   pretty (LetIn lExpr_out ident lExpr_in expr) =
-        "let " ++ pretty lExpr_out ++ " = " ++ pretty lExpr_in ++ " in " ++ pretty expr
+        "let " ++ pretty lExpr_out ++ " = " ++ pretty lExpr_in ++ "\n in " ++ pretty expr ++ "\n"
   pretty (RLetIn lExpr_in ident lExpr_out expr) =
-        "rlet " ++ pretty lExpr_in ++ " = " ++ pretty lExpr_out ++ " in " ++ pretty expr
+        "rlet " ++ pretty lExpr_in ++ " = " ++ pretty lExpr_out ++ "\n in " ++ pretty expr ++ "\n"
   pretty (CaseOf lExpr matches) =
-        "case " ++ pretty lExpr ++ " of " ++ "{" ++ concatMap (\(le,e) -> pretty le ++ " -> " ++ pretty e) matches ++ "}"
+        "case " ++ pretty lExpr ++ " of " ++ "{\n" ++ intercalate "\n" (map (\(le,e) -> pretty le ++ " -> " ++ pretty e) matches) ++ "}"
 
 instance Pretty Value where
   pretty value = pretty $ valueToLExpr value

@@ -29,8 +29,14 @@ import Data.List (nub)
 runPreparse :: Program -> FuncEnv
 runPreparse program = M.fromList funcEnv
 	where
-		funcEnvSS = programToFuncEnvSS program
+		program2 = applyToFunctionBody desugarApplyInExpr program
+		funcEnvSS = programToFuncEnvSS program2
 		funcEnv = desugarArgPatMatch funcEnvSS
+
+applyToFunctionBody :: (Expr -> Expr) -> Program -> Program
+applyToFunctionBody fun prog = map app prog
+	where
+		app func = func{ body = fun $ body func }
 
 -------------------------------------------------------------------------------
 -- ** Collecting functions of identical name for the function environment
@@ -59,3 +65,20 @@ desugarArgPatMatch = map desugarArgPatMatchSingle
 		desugarArgPatMatchSingle (idt, funcs) = (idt, Func idt (Var "x") (CaseOf (Var "x") cases))
 			where
 				cases = map (\x -> (param x, body x)) funcs
+
+-------------------------------------------------------------------------------
+-- ** De-sugar function calls in expressions
+-------------------------------------------------------------------------------
+desugarApplyInExpr :: Expr -> Expr
+desugarApplyInExpr (LetIn lExpr1 ident lExpr2 expr) =
+	LetIn lExpr1 ident lExpr2 $ desugarApplyInExpr expr
+desugarApplyInExpr (RLetIn lExpr1 ident lExpr2 expr) =
+	RLetIn lExpr1 ident lExpr2 $ desugarApplyInExpr expr
+desugarApplyInExpr (CaseOf lExpr cases) =
+	CaseOf lExpr $ map (\(le,e) -> (le, desugarApplyInExpr e)) cases
+desugarApplyInExpr (ApplyE ident lExpr) = 
+	LetIn (Var "_tmp") ident lExpr (LeftE (Var "_tmp"))
+desugarApplyInExpr e = e
+
+
+

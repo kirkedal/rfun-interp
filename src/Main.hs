@@ -44,6 +44,7 @@ main =
 					case res of
 						Nothing -> exitWith $ ExitFailure 124
 						_       -> return ()
+			[filename] -> parseAndPre filename
 			_ -> putStrLn "Bad args. Usage: \"main\" startfunc startvalue programfile"
 
 
@@ -55,6 +56,13 @@ parseAndRun program value filename =
 		let funEnv = runPreparse prg
 		res    <- fromError =<< return (runProg program val funEnv)
 		putStrLn $ pretty res
+
+parseAndPre :: String -> IO ()
+parseAndPre filename =
+	do
+		prg    <- fromError =<< parseInput filename
+		let funEnv = runPreparse prg
+		putStrLn $ prettyFuncEnv funEnv
 
 parseInput :: String -> IO (Either ParseError Program)
 parseInput "-"  = parseString =<< getContents

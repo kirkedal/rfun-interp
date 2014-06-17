@@ -121,7 +121,7 @@ funDef = do i <- identifier
             return $ Func i le e
 
 expr :: LangParser Expr
-expr = try letin <|> try rletin <|> try caseof <|> lefte
+expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
     where
         letin  = do reserved "let"
                     leout <- lexpr
@@ -146,6 +146,10 @@ expr = try letin <|> try rletin <|> try caseof <|> lefte
                     return $ CaseOf le c
         lefte  = do le <- lexpr
                     return $ LeftE le
+        apply  = do lookAhead (lower)
+                    fun <- identifier
+                    le <- lexpr
+                    return $ ApplyE fun le
         cases  = do le <- lexpr
                     symbol "->"
                     e <- expr
