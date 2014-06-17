@@ -39,7 +39,7 @@
 module Ast where
 
 import qualified Data.Map as M
-import Data.List (intersperse)
+import Data.List (intercalate)
 
 -- |A program is a sequence of functions
 type Program  = [Func]
@@ -93,9 +93,9 @@ instance Pretty LExpr where
   pretty (Var ident) = ident
   pretty (Constr "Cons" [lExpr1,lExpr2]) = (pretty lExpr1) ++ " : " ++ (pretty lExpr2)
   pretty (Constr "Nil" []) = "[ ]"
-  pretty (Constr "Tuple" lExprs) = "{" ++ (concat $ intersperse ", " $ map pretty lExprs) ++ "}"
+  pretty (Constr "Tuple" lExprs) = "{" ++ (intercalate ", " $ map pretty lExprs) ++ "}"
   pretty (Constr eIdent []) = eIdent
-  pretty (Constr eIdent lExprs) = eIdent ++ "(" ++ (concat $ intersperse ", " $ map pretty lExprs) ++ ")"
+  pretty (Constr eIdent lExprs) = eIdent ++ "(" ++ (intercalate ", " $ map pretty lExprs) ++ ")"
   pretty (DupEq lExpr) = "|" ++ pretty lExpr ++ "|"
 
 instance Pretty Expr where
