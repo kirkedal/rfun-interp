@@ -54,6 +54,25 @@ map (x:xs) =^=
 	    xs' = map xs
 	in  (x':xs')
 
+reverse xs =^= 
+	let {xs_s,xs'} = length xs
+	    {[],ys,xs_s'} = move {xs',[],xs_s}
+	in 
+		rlet {xs_s',ys} = length ys'
+ 		in ys'
+	
+-- This function in only partial
+move {x,l,Z}     =^= {x,l,Z}
+move {(x:xs),l,S(s)} =^= 
+	let {ys,ls,s'} = move {xs,(x:l),s} 
+	in  {ys,ls,S(s')}
+
+
+length [] =^= {Z,[]}
+length (x:xs) =^=
+	let {l,xs'} = length xs
+	in  {S(l), (x:xs')}
+
 -- plus :: N * N -> N * N
 -- plus {x,Z} =^= |{x}|
 -- plus {x,S(u)} =^= 
