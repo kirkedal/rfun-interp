@@ -154,7 +154,7 @@ expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
         apply  = do lookAhead (lower)
                     fun <- identifier
                     le <- lexpr
-                    notFollowedBy lexpr
+                    notFollowedBy $ lexpr >> symbol "=^="
                     return $ LetIn (Var "_tmp") fun le (LeftE (Var "_tmp"))
         cases  = do le <- lexpr
                     symbol "->"
