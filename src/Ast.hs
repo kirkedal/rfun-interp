@@ -116,7 +116,7 @@ instance Pretty Expr where
   pretty (LetIn lExpr_out ident lExpr_in expr) =
         "let " ++ pretty lExpr_out ++ " = " ++ ident ++ " " ++ pretty lExpr_in ++ "\n in " ++ pretty expr ++ "\n"
   pretty (RLetIn lExpr_in ident lExpr_out expr) =
-        "rlet " ++ pretty lExpr_in ++ " = " ++ pretty lExpr_out ++ "\n in " ++ pretty expr ++ "\n"
+        "rlet " ++ pretty lExpr_in ++ " = " ++ ident ++ " " ++ pretty lExpr_out ++ "\n in " ++ pretty expr ++ "\n"
   pretty (CaseOf lExpr matches) =
         "case " ++ pretty lExpr ++ " of " ++ "{\n" ++ intercalate "\n" (map (\(le,e) -> pretty le ++ " -> " ++ pretty e) matches) ++ "}"
 
