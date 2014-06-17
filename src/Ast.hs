@@ -74,6 +74,11 @@ valueToLExpr :: Value -> LExpr
 valueToLExpr (ConstrV ident values) = 
   Constr ident (map valueToLExpr values)
 
+constrToNum :: LExpr -> Int
+constrToNum (Constr "Z" []) = 0
+constrToNum (Constr "S" [lExpr]) = 1 + constrToNum lExpr
+constrToNum c = error $ "Not a number:\n"++ show c
+
 -- |An error is a String
 type Error = String
 -- |Evaluating with return either a result of an Error
@@ -94,6 +99,8 @@ instance Pretty Func where
 
 instance Pretty LExpr where
   pretty (Var ident) = ident
+  pretty (Constr "Z" []) = show $ 0
+  pretty c@(Constr "S" _) = show $ constrToNum c
   pretty (Constr "Cons" [lExpr1,lExpr2]) = (pretty lExpr1) ++ " : " ++ (pretty lExpr2)
   pretty (Constr "Nil" []) = "[ ]"
   pretty (Constr "Tuple" lExprs) = "{" ++ (intercalate ", " $ map pretty lExprs) ++ "}"

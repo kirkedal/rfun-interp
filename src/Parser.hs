@@ -107,6 +107,12 @@ braces = P.braces lexer
 
 reserved = P.reserved lexer
 
+-- |Parses a constant (i.e. a number)
+--
+-- Looks kinda useless but the definition of constant is not fixed
+--constant :: CharParser st Const
+constant = lexeme natural >>= return . fromIntegral
+
 --eol = string "\n"
 
 program :: LangParser Program
@@ -155,9 +161,14 @@ expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
                     e <- expr
                     return (le,e)
 
+constToConstr 0 = Constr "Z" []
+constToConstr n = Constr "S" [constToConstr (n-1)]
+
 lexpr :: LangParser LExpr
-lexpr = try var <|> try tuple <|> try dupeq <|> try constr <|> try constrN <|> try list1 <|> try list2 <|> parenE
+lexpr = try const <|> try var <|> try tuple <|> try dupeq <|> try constr <|> try constrN <|> try list1 <|> try list2 <|> parenE
     where
+        const  = do c <- constant
+                    return $ constToConstr c
         var    = do lookAhead (lower)
                     var <- identifier
                     return $ Var var
@@ -183,9 +194,14 @@ lexpr = try var <|> try tuple <|> try dupeq <|> try constr <|> try constrN <|> t
 
 -- Parsing values
 
+constToValue 0 = ConstrV "Z" []
+constToValue n = ConstrV "S" [constToValue (n-1)]
+
 value :: LangParser Value
-value = try tuple <|> try constr <|> try constrN <|> try list <|> parenV
+value = try const <|> try tuple <|> try constr <|> try constrN <|> try list <|> parenV
     where
+        const  = do c <- constant
+                    return $ constToValue c
         tuple  = do les <- braces $ value `sepBy1` (symbol ",")
                     return $ ConstrV "Tuple" les
         constr = do i <- identifier

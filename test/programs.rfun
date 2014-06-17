@@ -31,6 +31,7 @@ scanr {i, (x:xs)} =^=
   let {i', x'} = plus {i,x}
       {x'',l} = scanr {x', xs}
   in  {i',(x'':l)}
+
 -- 
 scanl {i,[]}      =^= {i,[]}
 scanl {i,[x]}     =^= 
