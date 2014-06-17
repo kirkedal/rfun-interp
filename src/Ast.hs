@@ -74,10 +74,10 @@ valueToLExpr :: Value -> LExpr
 valueToLExpr (ConstrV ident values) = 
   Constr ident (map valueToLExpr values)
 
-constrToNum :: LExpr -> Int
-constrToNum (Constr "Z" []) = 0
-constrToNum (Constr "S" [lExpr]) = 1 + constrToNum lExpr
-constrToNum c = error $ "Not a number:\n"++ show c
+constrToNum :: LExpr -> Maybe Int
+constrToNum (Constr "Z" []) = Just 0
+constrToNum (Constr "S" [lExpr]) = do n <- constrToNum lExpr ; Just $ n + 1
+constrToNum c = Nothing
 
 -- |An error is a String
 type Error = String
@@ -100,7 +100,10 @@ instance Pretty Func where
 instance Pretty LExpr where
   pretty (Var ident) = ident
   pretty (Constr "Z" []) = show $ 0
-  pretty c@(Constr "S" _) = show $ constrToNum c
+  pretty c@(Constr "S" lExprs) = 
+    case constrToNum c of
+      Just n -> show n
+      Nothing -> "S(" ++ (intercalate ", " $ map pretty lExprs) ++ ")"
   pretty (Constr "Cons" [lExpr1,lExpr2]) = (pretty lExpr1) ++ " : " ++ (pretty lExpr2)
   pretty (Constr "Nil" []) = "[ ]"
   pretty (Constr "Tuple" lExprs) = "{" ++ (intercalate ", " $ map pretty lExprs) ++ "}"
@@ -111,7 +114,7 @@ instance Pretty LExpr where
 instance Pretty Expr where
   pretty (LeftE lExpr) = pretty lExpr
   pretty (LetIn lExpr_out ident lExpr_in expr) =
-        "let " ++ pretty lExpr_out ++ " = " ++ pretty lExpr_in ++ "\n in " ++ pretty expr ++ "\n"
+        "let " ++ pretty lExpr_out ++ " = " ++ ident ++ " " ++ pretty lExpr_in ++ "\n in " ++ pretty expr ++ "\n"
   pretty (RLetIn lExpr_in ident lExpr_out expr) =
         "rlet " ++ pretty lExpr_in ++ " = " ++ pretty lExpr_out ++ "\n in " ++ pretty expr ++ "\n"
   pretty (CaseOf lExpr matches) =

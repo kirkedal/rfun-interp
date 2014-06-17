@@ -154,7 +154,7 @@ expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
         apply  = do lookAhead (lower)
                     fun <- identifier
                     le <- lexpr
---                    return $ ApplyE fun le
+                    notFollowedBy lexpr
                     return $ LetIn (Var "_tmp") fun le (LeftE (Var "_tmp"))
         cases  = do le <- lexpr
                     symbol "->"
@@ -178,10 +178,12 @@ lexpr = try const <|> try var <|> try tuple <|> try dupeq <|> try constr <|> try
                     le <- lexpr
                     symbol "|"
                     return $ DupEq le
-        constr = do i <- identifier
+        constr = do lookAhead (upper)
+                    i <- identifier
                     vars <- parens $ lexpr `sepBy` (symbol ",")
                     return $ Constr i vars
-        constrN= do i <- identifier
+        constrN= do lookAhead (upper)
+                    i <- identifier
                     return $ Constr i []
         list1  = parens $ chainr1 lexpr cons
         cons   = do symbol ":"; return (\v1 v2 -> Constr "Cons" [v1,v2])
