@@ -127,12 +127,12 @@ expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
                     l <- many1 assign
                     reserved "in"
                     e <- expr
-                    return $ LetIns l e
+                    return $ foldr (\(lExpr1, ident, lExpr2) e -> LetIn lExpr1 ident lExpr2 e) e l
         rletin = do reserved "rlet"
                     l <- many1 assign
                     reserved "in"
                     e <- expr
-                    return $ RLetIns l e
+                    return $ foldr (\(lExpr1, ident, lExpr2) e -> RLetIn lExpr1 ident lExpr2 e) e l
         assign = do leout <- lexpr ; 
                     symbol "=" ; 
                     fun <- identifier ; 
@@ -148,7 +148,8 @@ expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
         apply  = do lookAhead (lower)
                     fun <- identifier
                     le <- lexpr
-                    return $ ApplyE fun le
+--                    return $ ApplyE fun le
+                    return $ LetIn (Var "_tmp") fun le (LeftE (Var "_tmp"))
         cases  = do le <- lexpr
                     symbol "->"
                     e <- expr
