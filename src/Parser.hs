@@ -147,7 +147,7 @@ expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
         caseof = do reserved "case"
                     le <- lexpr
                     reserved "of"
-                    c <- many1 cases
+                    c <- many1 $ try cases
                     return $ CaseOf le c
         lefte  = do le <- lexpr
                     return $ LeftE le
