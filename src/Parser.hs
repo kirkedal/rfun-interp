@@ -12,161 +12,186 @@
 --
 -----------------------------------------------------------------------------
 
-module Parser(parseFile, parseString, parseValue) where
+
+module Parser (parseString, parseFromFile, parseValue, ParseError) where
+
+
+import Text.ParserCombinators.Parsec hiding (parse,parseFromFile)
+import qualified Text.Parsec.Token as P
+import Text.Parsec.Language
+import qualified Text.Parsec.Char as PC
+import Text.Parsec.Prim (runP)
+import qualified Text.ParserCombinators.Parsec.Expr as E
+
+import Control.Monad
+import Data.Maybe
 
 import Ast
-import Text.ParserCombinators.ReadP
-import Control.Applicative hiding (many)
-import Control.Monad
-import Data.Char
-import Data.List
+
+type ParserState = [String]
+
+initialState :: ParserState
+initialState = []
+type LangParser = GenParser Char ParserState
 
 -------------------------------------------------------------------------------
 -- * Functions for parsing values and programs
 -------------------------------------------------------------------------------
 
--- |Parsing a String to a Value
-parseValue :: String -> Either Error Value
-parseValue s = case find (null . snd) $ readP_to_S (skipAll *> value) s of
-                  Just (x,_) -> Right x
-                  Nothing    -> Left "syntax error in value"
+parse' p = parse p "could not parse"
+parse p = runP p initialState
 
--- |Parsing a String to a program
-parseString :: String -> Either Error Program
-parseString s = case find (null . snd) $ readP_to_S (skipAll *> program) s of
-                  Just (x,_) -> Right x
-                  Nothing    -> Left "syntax error"
+parseFromFile :: String -> IO (Either ParseError Program)
+parseFromFile fname
+    = do input <- readFile fname
+         return (parse program fname input)
 
--- |Reading a file from a path and parsing it to a program
-parseFile :: FilePath -> IO (Either Error Program)
-parseFile = liftM parseString . readFile
+parseString :: String -> IO (Either ParseError Program)
+parseString input = return $ parse program "Text field" input
+
+parseValue :: String -> IO (Either ParseError Value)
+parseValue input = return $ parse value "Value" input
 
 -------------------------------------------------------------------------------
 -- * Implementation of the parser
 -------------------------------------------------------------------------------
 
-type Parser = ReadP
+cStyle = P.LanguageDef {
+  P.commentStart    = "",
+  P.commentEnd      = "",
+  P.commentLine     = "--",
+  P.nestedComments  = False, 
+  P.identStart      = letter <|> char '_', 
+  P.identLetter     = alphaNum <|> char '_' <|> char '\'',
+  P.opStart         = oneOf "=-|", 
+  P.opLetter        = oneOf "^=>|-", 
+  P.reservedOpNames = ["=^=", "=", "->"],
+  P.reservedNames   = ["let", "rlet", "in", "case", "of"],
+  P.caseSensitive   = True
+}
 
-lexeme :: Parser a -> Parser a
-lexeme p = p <* skipAll
+-- |Used to conveniently create the parsers 'natural', 'constant', and 'identifier'
+lexer = P.makeTokenParser cStyle
 
-skipAll :: Parser ()
-skipAll = skipMany $ choice [comment, space]
+-- |Parses a natural number
+natural = P.natural lexer
 
-symbol :: String -> Parser String
-symbol = lexeme . string
+-- |Parses a colon
+colon = P.colon lexer
 
-token :: Parser a -> Parser a
-token p = lexeme p
+lexeme = P.lexeme lexer
 
-space :: Parser String
-space = munch1 isSpace
+-- |Parses the character ',' and skips any trailing white space. Returns the string ",".
+comma = P.comma lexer
 
-comment :: Parser String
-comment = string "--" >> manyTill anyChar (char '\n')
-  where anyChar = satisfy (\_ -> True)
+-- |Parses white space
+whiteSpace = P.whiteSpace lexer
 
-alphaNum :: Parser Char
-alphaNum = satisfy isAlphaNum
+-- |Parses the string s and skips trailing whitespaces
+symbol :: String -> CharParser st String
+symbol = P.symbol lexer
 
-upperLetter :: Parser Char
-upperLetter = satisfy isUpper
+-- |Parses and returns a valid identifier
+identifier :: CharParser st String
+identifier = P.identifier lexer
 
-lowerLetter :: Parser Char
-lowerLetter = satisfy isLower
+-- |Parser @(parens p)@ parses p and trailing whitespaces enclosed in parenthesis ('(' and ')'),
+--  returning the value of p.
+parens = P.parens lexer
 
-keyword :: String -> Parser String
-keyword = token . string
+-- |Parser @(brackets p)@ parses p and trailing whitespaces enclosed in square brackets ('[' and ']'),
+--  returning the value of p.
+brackets = P.squares lexer
 
-parens :: Parser a -> Parser a
-parens p = symbol "(" *> p <* symbol ")"
+braces = P.braces lexer
 
-parensT :: Parser a -> Parser a
-parensT p = symbol "{" *> p <* symbol "}"
+reserved = P.reserved lexer
 
-parensB :: Parser a -> Parser a
-parensB p = symbol "|" *> p <* symbol "|"
+--eol = string "\n"
 
-parensS :: Parser a -> Parser a
-parensS p = symbol "[" *> p <* symbol "]"
-
-keywords :: [String]
-keywords = ["let", "rlet", "case", "of", "in"]
-
-ident :: Parser Ident
-ident = token $ do
-         k <- (:) <$> lowerLetter <*> munch (\c -> isAlphaNum c || c == '_')
-         if k `elem` keywords then pfail else return k
+program :: LangParser Program
+program = whiteSpace >> many1 funDef
 
 
-constrName :: Parser Ident
-constrName = token $ do
-         k <- (:) <$> upperLetter <*> munch (\c -> isAlphaNum c || c == '_')
-         if k `elem` keywords then pfail else return k
+funDef :: LangParser Func
+funDef = do i <- identifier
+            le <- lexpr
+            symbol "=^="
+            e <- expr
+            return $ Func i le e
 
-cases :: Parser [(LExpr, Expr)]
-cases = some case'
-  where case' = (,) <$> lexpr <*> (symbol "->" *> expr)
-
-expr :: Parser Expr
-expr = LetIn  <$> (keyword "let" *> lexpr)
-              <*> (symbol "=" *> ident)
-              <*> lexpr
-              <*> (keyword "in" *> expr)
-   <|> RLetIn <$> (keyword "rlet" *> lexpr) 
-              <*> (symbol "=" *> ident)
-              <*> lexpr
-              <*> (keyword "in" *> expr)
-   <|> CaseOf <$> (keyword "case" *> lexpr <* keyword "of")
-              <*> cases
-   <|> LeftE <$> lexpr
-
-lexpr :: Parser LExpr
-lexpr = (\x y -> Constr "Tuple" [x,y]) <$> (symbol "{" *> lexpr) <*> (symbol "," *> lexpr <* symbol "}")
-    <|> (\x -> Constr "Tuple" [x]) <$> parensT lexpr
-    <|> DupEq  <$> parensB lexpr
-    <|> Constr <$> constrName <*> parens vars 
-    <|> Constr <$> constrName <*> pure []
-    <|> Var    <$> ident
-    <|> parens (chainr1 lexpr cons)
-    <|> symbol "[]" *> pure (Constr "Nil" [])
-    <|> parens lexpr 
+expr :: LangParser Expr
+expr = try letin <|> try rletin <|> try caseof <|> lefte
     where
-      cons = symbol ":" *> pure (\v1 v2 -> Constr "Cons" [v1,v2])
+        letin  = do reserved "let"
+                    leout <- lexpr
+                    symbol "="
+                    fun <- identifier
+                    lein <- lexpr
+                    reserved "in"
+                    e <- expr
+                    return $ LetIn leout fun lein e
+        rletin = do reserved "rlet"
+                    lein <- lexpr
+                    symbol "="
+                    fun <- identifier
+                    leout <- lexpr
+                    reserved "in"
+                    e <- expr
+                    return $ RLetIn lein fun leout e
+        caseof = do reserved "case"
+                    le <- lexpr
+                    reserved "of"
+                    c <- many1 cases
+                    return $ CaseOf le c
+        lefte  = do le <- lexpr
+                    return $ LeftE le
+        cases  = do le <- lexpr
+                    symbol "->"
+                    e <- expr
+                    return (le,e)
 
-someVars :: Parser [LExpr]
-someVars = lexpr `sepBy1` symbol ","
+lexpr :: LangParser LExpr
+lexpr = try var <|> try tuple <|> try dupeq <|> try constr <|> try constrN <|> try list1 <|> try list2 <|> parenE
+    where
+        var    = do lookAhead (lower)
+                    var <- identifier
+                    return $ Var var
+        tuple  = do les <- braces $ lexpr `sepBy1` (symbol ",")
+                    return $ Constr "Tuple" les
+        dupeq  = do symbol "|"
+                    le <- lexpr
+                    symbol "|"
+                    return $ DupEq le
+        constr = do i <- identifier
+                    vars <- parens $ lexpr `sepBy` (symbol ",")
+                    return $ Constr i vars
+        constrN= do i <- identifier
+                    return $ Constr i []
+        list1  = parens $ chainr1 lexpr cons
+        cons   = do symbol ":"; return (\v1 v2 -> Constr "Cons" [v1,v2])
+        list2  = do l <- brackets $ lexpr `sepBy` (symbol ",")
+                    return $ foldr (\a b -> Constr "Cons" [a,b]) (Constr "Nil" []) l
+        parenE = parens lexpr
 
-vars :: Parser [LExpr]
-vars = someVars <|> pure []
 
-
-funDef :: Parser Func
-funDef = Func <$> ident <*> lexpr <*> 
-         (symbol "=^=" *> expr )
-
-
-funDefs :: Parser [Func]
-funDefs = many funDef
-
-program :: Parser Program
-program = funDefs
 
 
 -- Parsing values
 
-value :: Parser Value
-value = (\x y -> ConstrV "Tuple" [x,y]) <$> (symbol "{" *> value) <*> (symbol "," *> value <* symbol "}")
-    <|> (\x -> ConstrV "Tuple" [x]) <$> parensT value
-    <|> ConstrV <$> constrName <*> parens vals 
-    <|> ConstrV <$> constrName <*> pure []
-    <|> parens (chainr1 value cons)
-    <|> parensS (foldr (\a b -> ConstrV "Cons" [a,b]) (ConstrV "Nil" []) <$> (sepBy value (symbol ",")))
+value :: LangParser Value
+value = try tuple <|> try constr <|> try constrN <|> try list <|> parenV
     where
-      cons = symbol ":" *> pure (\v1 v2 -> ConstrV "Cons" [v1,v2])
-
-someVals :: Parser [Value]
-someVals = value `sepBy1` symbol ","
-
-vals :: Parser [Value]
-vals = someVals <|> pure []
+        tuple  = do les <- braces $ value `sepBy1` (symbol ",")
+                    return $ ConstrV "Tuple" les
+        constr = do i <- identifier
+                    vars <- parens $ value `sepBy` (symbol ",")
+                    return $ ConstrV i vars
+        constrN= do i <- identifier
+                    return $ ConstrV i []
+        --list1  = parens $ chainr1 value cons
+        --cons   = do symbol ":"; pure (\v1 v2 -> ConstrV "Cons" [v1,v2])
+        list   = do l <- brackets $ value `sepBy` (symbol ",")
+                    return $ foldr (\a b -> ConstrV "Cons" [a,b]) (ConstrV "Nil" []) l
+        parenV = parens value
+        

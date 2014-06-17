@@ -23,7 +23,7 @@ module Main (main) where
 import Ast
 import Preparse (runPreparse)
 import Interp (runProg)
-import Parser (parseFile, parseValue, parseString)
+import Parser (parseFromFile, parseValue, parseString, ParseError)
 import System.Environment
 import System.Exit
 import System.Timeout
@@ -50,17 +50,16 @@ main =
 parseAndRun :: String -> String -> String -> IO ()
 parseAndRun program value filename =
 	do
-		prg    <- parseInput filename
-		let val = parseValue value
-		    funEnv = liftM runPreparse prg
-		    res = join $ liftM2 (runProg program) val funEnv
-		case res of
-			Left err -> putStrLn err >> (exitWith $ ExitFailure 1)
-			Right r -> putStrLn (pretty r)
+		prg    <- fromError =<< parseInput filename
+		val    <- fromError =<< parseValue value
+		let funEnv = runPreparse prg
+		res    <- fromError =<< return (runProg program val funEnv)
+		putStrLn $ pretty res
 
-parseInput :: String -> IO (Either Error Program)
-parseInput = liftM parseString . loadInput
+parseInput :: String -> IO (Either ParseError Program)
+parseInput "-"  = parseString =<< getContents
+parseInput file = parseFromFile file
 
-loadInput :: String -> IO String
-loadInput "-"      = getContents
-loadInput filename = readFile filename
+fromError :: Show a => Either a b -> IO b
+fromError (Left err) = putStrLn (show err) >> (exitWith $ ExitFailure 1)
+fromError (Right a)  = return a

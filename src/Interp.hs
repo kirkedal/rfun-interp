@@ -12,9 +12,9 @@
 -- 
 -- The design is intended to follow closely* the design of the RFun paper:
 --
---   T. Yokoyama, H. B. Axelsen, and R. Gluck
---   Towards a reversible functional language
---   LNCS vol. 7165, pp. 14--29, 2012
+--  T. Yokoyama, H. B. Axelsen, and R. Gluck
+--    Towards a reversible functional language
+--    LNCS vol. 7165, pp. 14--29, 2012
 --
 -- * I know that there are obvious reader and state monads below.
 -----------------------------------------------------------------------------
@@ -241,7 +241,6 @@ evalExpV funcEnv sub e@(CaseOf lExpr matches) =
 		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val_p) $ checkLeaves evalRMatchS val leaves_j
 	where 
 		vars = findVars lExpr
-
 
 -- |This function is helper for the caseOf
 checkLeaves :: (Value -> LExpr -> Eval c) -> Value -> [LExpr] -> Maybe Value
