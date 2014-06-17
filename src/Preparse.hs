@@ -30,8 +30,8 @@ runPreparse :: Program -> FuncEnv
 runPreparse program = M.fromList funcEnv
 	where
 --		program2 = applyToFunctionBody desugarManyLetIn program
-		program3 = applyToFunctionBody desugarApplyInExpr program
-		funcEnvSS = programToFuncEnvSS program3
+--		program3 = applyToFunctionBody desugarApplyInExpr program
+		funcEnvSS = programToFuncEnvSS program
 		funcEnv = desugarArgPatMatch funcEnvSS
 
 applyToFunctionBody :: (Expr -> Expr) -> Program -> Program
@@ -70,16 +70,16 @@ desugarArgPatMatch = map desugarArgPatMatchSingle
 -------------------------------------------------------------------------------
 -- ** De-sugar function calls in expressions
 -------------------------------------------------------------------------------
-desugarApplyInExpr :: Expr -> Expr
-desugarApplyInExpr (LetIn lExpr1 ident lExpr2 expr) =
-	LetIn lExpr1 ident lExpr2 $ desugarApplyInExpr expr
-desugarApplyInExpr (RLetIn lExpr1 ident lExpr2 expr) =
-	RLetIn lExpr1 ident lExpr2 $ desugarApplyInExpr expr
-desugarApplyInExpr (CaseOf lExpr cases) =
-	CaseOf lExpr $ map (\(le,e) -> (le, desugarApplyInExpr e)) cases
-desugarApplyInExpr (ApplyE ident lExpr) = 
-	LetIn (Var "_tmp") ident lExpr (LeftE (Var "_tmp"))
-desugarApplyInExpr e = e
+--desugarApplyInExpr :: Expr -> Expr
+--desugarApplyInExpr (LetIn lExpr1 ident lExpr2 expr) =
+--	LetIn lExpr1 ident lExpr2 $ desugarApplyInExpr expr
+--desugarApplyInExpr (RLetIn lExpr1 ident lExpr2 expr) =
+--	RLetIn lExpr1 ident lExpr2 $ desugarApplyInExpr expr
+--desugarApplyInExpr (CaseOf lExpr cases) =
+--	CaseOf lExpr $ map (\(le,e) -> (le, desugarApplyInExpr e)) cases
+--desugarApplyInExpr (ApplyE ident lExpr) = 
+--	LetIn (Var "_tmp") ident lExpr (LeftE (Var "_tmp"))
+--desugarApplyInExpr e = e
 
 -------------------------------------------------------------------------------
 -- ** De-sugar many let assignments

@@ -54,7 +54,6 @@ data Expr     = LeftE LExpr                       -- ^ Left-expression
               | LetIn LExpr Ident LExpr Expr      -- ^ Let-binding
               | RLetIn LExpr Ident LExpr Expr     -- ^ Let-binding with reverse function call
               | CaseOf LExpr [(LExpr, Expr)]      -- ^ Case-of expression
-              | ApplyE Ident LExpr
               deriving (Show, Eq)
 -- |A left-expression is
 data LExpr    = Var Ident                         -- ^ Variable
