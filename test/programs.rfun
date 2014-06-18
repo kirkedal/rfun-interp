@@ -7,26 +7,19 @@ inc S(np) =^=
 		in  S(npp)
 
 -- fib :: N -> N * N
---fib Z    =^= {S(Z),S(Z)}
---fib S(m) =^= 
---		let {x,y} = fib m 
---		in  let z = plus {y,x}
---				in z
+fib Z    =^= {S(Z),S(Z)}
+fib S(m) =^= 
+		let {x,y} = fib m 
+		in plus {y,x}
 
 plus {x,y} =^= 
     case y of
 		Z    -> |{x}|
 		S(u) -> let {xp,up} = plus {x,u} in {xp, S(up)}
 
-
-fib Z    =^= {S(Z),S(Z)}
-fib S(m) =^= 
-		let {x,y} = fib m 
-		in plus {y,x}
-
 -- Haskell like combinations
---	fib Z    =^= {S(Z),S(Z)}
--- 	fib S(m) =^= plus $ swap $ fib m
+--	fib2 Z    =^= {S(Z),S(Z)}
+-- 	fib2 S(m) =^= plus (swap (fib2 m))
 
 -- swap :: a * b -> b * a
 swap {x,y} =^= {y,x}
@@ -55,11 +48,10 @@ map (x:xs) =^=
 	in  (x':xs')
 
 reverse xs =^= 
-	let {xs_s,xs'} = length xs
-	    {[],ys,xs_s'} = move {xs',[],xs_s}
-	in 
-		rlet {xs_s',ys} = length ys'
- 		in ys'
+	let  {xs_s,xs'} = length xs
+	     {[],ys,xs_s'} = move {xs',[],xs_s} 
+	rlet {xs_s',ys} = length ys'
+	in   ys'
 	
 -- This function in only partial
 move {x,l,Z}     =^= {x,l,Z}
@@ -67,6 +59,11 @@ move {(x:xs),l,S(s)} =^=
 	let {ys,ls,s'} = move {xs,(x:l),s} 
 	in  {ys,ls,S(s')}
 
+id x =^= x
+
+-- This is also partial
+-- If it is called reverse and the N is not equal
+--   to the length of the list, I will fail.
 length [] =^= {Z,[]}
 length (x:xs) =^=
 	let {l,xs'} = length xs

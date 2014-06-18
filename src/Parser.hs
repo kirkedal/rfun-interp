@@ -131,14 +131,15 @@ expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
     where
         letin  = do reserved "let"
                     l <- many1 assign
-                    reserved "in"
-                    e <- expr
+                    e <- choice [inPart, letin, rletin]
                     return $ foldr (\(lExpr1, ident, lExpr2) e -> LetIn lExpr1 ident lExpr2 e) e l
         rletin = do reserved "rlet"
                     l <- many1 assign
-                    reserved "in"
-                    e <- expr
+                    e <- choice [inPart, letin, rletin]
                     return $ foldr (\(lExpr1, ident, lExpr2) e -> RLetIn lExpr1 ident lExpr2 e) e l
+        inPart = do reserved "in"
+                    e <- expr
+                    return $ e
         assign = do leout <- lexpr ; 
                     symbol "=" ; 
                     fun <- identifier ; 

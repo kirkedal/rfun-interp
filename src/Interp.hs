@@ -214,6 +214,8 @@ evalExpS funcEnv e@(CaseOf lExpr matches) value =
 		val_p <- evalRMatchV sub_j lExpr_j
 		sub_l <- evalExpS funcEnv (LeftE lExpr) val_p
 		disUnion sub_l sub_t
+		-- Should I make a consistency check with val_p against previous l in cases
+		-- YES I SHOULD
 	where 
 		allLeaves = zip [0..] $ map (leaves.snd) matches
 
