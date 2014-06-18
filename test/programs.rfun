@@ -1,3 +1,15 @@
+---------------------------------------------------------------
+---- BASIC
+---------------------------------------------------------------
+
+-- swap :: a * b -> b * a
+swap {x,y} =^= {y,x}
+
+id x =^= x
+
+---------------------------------------------------------------
+---- ARITHMETIC
+---------------------------------------------------------------
 
 --data N = Z | S(n)
 
@@ -6,32 +18,44 @@ inc S(np) =^=
 		let npp = inc np 
 		in  S(npp)
 
+plus {x,  Z } =^= |{x}|
+plus {x,S(u)} =^= 
+    let {xp,up} = plus {x,u} 
+    in  {xp, S(up)}
+
+minus xy =^=
+		rlet xy = plus xy'
+		in   xy'
+
+mult {x,  Z } =^= {x,Z}
+mult {x,  S(Z) } =^= |{x}|
+mult {x,S(S(y))} =^=
+		let {x',m} = mult {x,S(y)}
+		in  plus {x',m}
+
 -- fib :: N -> N * N
 fib Z    =^= {S(Z),S(Z)}
 fib S(m) =^= 
 		let {x,y} = fib m 
 		in plus {y,x}
 
-plus {x,y} =^= 
-    case y of
-		Z    -> |{x}|
-		S(u) -> let {xp,up} = plus {x,u} in {xp, S(up)}
-
 -- Haskell like combinations
 --	fib2 Z    =^= {S(Z),S(Z)}
 -- 	fib2 S(m) =^= plus (swap (fib2 m))
 
--- swap :: a * b -> b * a
-swap {x,y} =^= {y,x}
 
--- scanr {}
+---------------------------------------------------------------
+---- LIST MANIPULATION
+---------------------------------------------------------------
+
+-- scanr specialized to plus
 scanr {i,[]}      =^= {i,[]}
 scanr {i, (x:xs)} =^= 
   let {i', x'} = plus {i,x}
       {x'',l} = scanr {x', xs}
   in  {i',(x'':l)}
 
--- 
+-- scanl specialized to plus
 scanl {i,[]}      =^= {i,[]}
 scanl {i,[x]}     =^= 
 	let {i', x'} = plus {i,x}
@@ -41,6 +65,7 @@ scanl {i, (x:z:xs)} =^=
 	    {y',x'} = plus {y,x}
 	in  {i', (x':y':ys)}
 
+-- map specialized to inc
 map [] =^= []
 map (x:xs) =^= 
 	let x' = inc x
@@ -54,6 +79,7 @@ reverse xs =^=
 	in   ys'
 	
 -- This function in only partial
+--  helper to reverse
 move {x,l,Z}     =^= {x,l,Z}
 move {(x:xs),l,S(s)} =^= 
 	let {ys,ls,s'} = move {xs,(x:l),s} 
@@ -64,7 +90,7 @@ divideAt {S(s),(l:ls)} =^=
 	let {l1,l2} = divideAt {s,ls}
 	in {(l:l1),l2}
 
-id x =^= x
+ht (x:xs) =^= {x,xs}
 
 last xs =^= 
 	let (x:xs') = reverse xs
@@ -89,12 +115,10 @@ unAppend x =^=
 	rlet x = append x'
 	in x'
 
--- plus :: N * N -> N * N
--- plus {x,Z} =^= |{x}|
--- plus {x,S(u)} =^= 
---	let {xp,up} = plus {x,u} 
---	in  {xp, S(up)}
 
+---------------------------------------------------------------
+---- APPLICATIONS
+---------------------------------------------------------------
 
 -- pack :: Eq a => [a] -> [a * N]
 pack [] =^= []
