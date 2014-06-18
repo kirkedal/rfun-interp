@@ -69,6 +69,16 @@ length (x:xs) =^=
 	let {l,xs'} = length xs
 	in  {S(l), (x:xs')}
 
+append {[],l}      =^= {[],l}
+append {(x:xs), l} =^= 
+	let {xs',l'} = append {xs,l}
+	in  case |{x}| of
+			{x',x''} -> {(x':xs'), (x'':l')} 
+
+unAppend x =^=
+	rlet x = append x'
+	in x'
+
 -- plus :: N * N -> N * N
 -- plus {x,Z} =^= |{x}|
 -- plus {x,S(u)} =^= 
