@@ -213,9 +213,11 @@ evalExpS funcEnv e@(CaseOf lExpr matches) value =
 		(sub_j, sub_t) <- divide vars_j sub_jt
 		val_p <- evalRMatchV sub_j lExpr_j
 		sub_l <- evalExpS funcEnv (LeftE lExpr) val_p
-		disUnion sub_l sub_t
-		-- Should I make a consistency check with val_p against previous l in cases
-		-- YES I SHOULD
+		sub_lt <- disUnion sub_l sub_t
+		-- A consistency check with val_p against previous l in cases
+		let takenMatches = take j matches
+		    takenLExpr = map fst takenMatches
+		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val_p) $ checkLExprs evalRMatchS val_p sub_lt takenLExpr
 	where 
 		allLeaves = zip [0..] $ map (leaves.snd) matches
 
@@ -248,8 +250,8 @@ evalExpV funcEnv sub e@(CaseOf lExpr matches) =
 					 findSubIndex (evalRMatchS val_p) $ zip ([0..]) (map fst matches)
 		sub_jt <- disUnion sub_j sub_t
 		val <- evalExpV funcEnv sub_jt $ snd $ matches !! j
-		takenMatches <- (\x -> return $ take x matches) j
-		let takenExpr = map snd takenMatches
+		let takenMatches = take j matches
+		    takenExpr = map snd takenMatches
 		    leaves_j = concatMap leaves takenExpr
 		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val) $ checkLeaves evalRMatchS val leaves_j
 	where 
@@ -260,6 +262,12 @@ checkLeaves :: (Value -> LExpr -> Eval c) -> Value -> [LExpr] -> Maybe Value
 checkLeaves _ val []          = return (val)
 checkLeaves func val (l:list) =
 		either (\_ -> checkLeaves func val list) (\_ -> Nothing) $ func val l
+
+-- |This function is helper for the caseOf
+checkLExprs :: (Value -> LExpr -> Eval c) -> Value -> Substitution -> [LExpr] -> Maybe Substitution
+checkLExprs _    _   sub []          = return (sub)
+checkLExprs func val sub (l:list) =
+		either (\_ -> checkLExprs func val sub list) (\_ -> Nothing) $ func val l
 
 -- | Finds the minimum index of a case-leave to which a eval-function matches.
 -- The list is indexed from 0; different from the paper!!!!
