@@ -59,7 +59,17 @@ move {(x:xs),l,S(s)} =^=
 	let {ys,ls,s'} = move {xs,(x:l),s} 
 	in  {ys,ls,S(s')}
 
+divideAt {Z,l} =^= {[],l}
+divideAt {S(s),(l:ls)} =^=
+	let {l1,l2} = divideAt {s,ls}
+	in {(l:l1),l2}
+
 id x =^= x
+
+last xs =^= 
+	let (x:xs') = reverse xs
+	    xs'' = reverse xs'
+	in  {x,xs''}
 
 -- This is also partial
 -- If it is called reverse and the N is not equal
