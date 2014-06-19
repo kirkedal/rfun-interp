@@ -205,7 +205,7 @@ evalExpS funcEnv (RLetIn lExpr_in ident lExpr_out expr) value =
 		vars = findVars lExpr_out
 evalExpS funcEnv e@(CaseOf lExpr matches) value = 
 	do  
-		(j, _) <- evalMaybe ("No match in leaves of cases:\n\t" ++ (pretty e) ++ "\nof value:\n\t" ++ pretty value) $
+		(j, _) <- evalMaybe ("No match in leaves of cases:\n\t" ++ pretty e ++ "\nof value:\n\t" ++ pretty value) $
 						findSubIndex (evalRMatchS value) $ concatMap (\(x,y) -> zip (repeat x) y) allLeaves
 		sub_jt <- evalExpS funcEnv (snd $ matches !! j) value
 		let lExpr_j = fst $ matches !! j
@@ -217,7 +217,8 @@ evalExpS funcEnv e@(CaseOf lExpr matches) value =
 		-- A consistency check with val_p against previous l in cases
 		let takenMatches = take j matches
 		    takenLExpr = map fst takenMatches
-		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val_p) $ checkLExprs evalRMatchS val_p sub_lt takenLExpr
+		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val_p) $ 
+						checkLExprs evalRMatchS val_p sub_lt takenLExpr
 	where 
 		allLeaves = zip [0..] $ map (leaves.snd) matches
 
@@ -246,14 +247,16 @@ evalExpV funcEnv sub e@(CaseOf lExpr matches) =
 	do
 		(sub_l, sub_t) <- divide vars sub
 		val_p <- evalExpV funcEnv sub_l (LeftE lExpr)
-		(j, sub_j) <- evalMaybe ("No match in cases:\n\t" ++ (pretty e) ++ "\nof value:\n\t" ++ pretty val_p) $
-					 findSubIndex (evalRMatchS val_p) $ zip ([0..]) (map fst matches)
+		(j, sub_j) <- evalMaybe ("No match in cases:\n\t" ++ pretty e ++ "\nof value:\n\t" ++ pretty val_p) $
+					 	findSubIndex (evalRMatchS val_p) $ zip ([0..]) (map fst matches)
 		sub_jt <- disUnion sub_j sub_t
 		val <- evalExpV funcEnv sub_jt $ snd $ matches !! j
+		-- A consistency check with val against previous l in cases
 		let takenMatches = take j matches
 		    takenExpr = map snd takenMatches
 		    leaves_j = concatMap leaves takenExpr
-		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val) $ checkLeaves evalRMatchS val leaves_j
+		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val) $
+			 			checkLeaves evalRMatchS val leaves_j
 	where 
 		vars = findVars lExpr
 

@@ -142,6 +142,7 @@ expr = try letin <|> try rletin <|> try caseof <|> try apply <|> lefte
                     return $ e
         assign = do leout <- lexpr ; 
                     symbol "=" ; 
+                    lookAhead (lower)
                     fun <- identifier ; 
                     lein <- lexpr ; 
                     return $ (leout, fun, lein) 
