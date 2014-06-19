@@ -13,6 +13,29 @@ id x =^= x
 
 --data N = Z | S(n)
 
+-- even :: N -> Either N N
+even_ Z =^= Right(Z)
+even_ S(Z) =^= Left(S(Z))
+even_ S(S(x)) =^= 
+		let x' = even_ x
+		in  case x' of
+						Right(x'') -> Right (S(S(x'')))
+						Left(x'')  -> Left (S(S(x'')))
+
+-- even :: N -> N
+--   only defined for even numbers
+even Z =^= Z
+even S(S(x)) =^= 
+		let x' = even x
+		in  S(S(x'))
+
+-- odd :: N -> N
+--   only defined for odd numbers
+odd S(Z) =^= S(Z)
+odd S(S(x)) =^= 
+		let x' = odd x
+		in  S(S(x'))
+
 inc Z =^= S(Z)
 inc S(np) =^= 
 		let npp = inc np 
@@ -27,94 +50,127 @@ minus xy =^=
 		rlet xy = plus xy'
 		in   xy'
 
-mult {x,  Z } =^= {x,Z}
-mult {x,  S(Z) } =^= |{x}|
-mult {x,S(S(y))} =^=
-		let {x',m} = mult {x,S(y)}
-		in  plus {x',m}
-
 -- fib :: N -> N * N
 fib Z    =^= {S(Z),S(Z)}
 fib S(m) =^= 
 		let {x,y} = fib m 
 		in plus {y,x}
 
--- Haskell like combinations
---	fib2 Z    =^= {S(Z),S(Z)}
--- 	fib2 S(m) =^= plus (swap (fib2 m))
+mult {x,     Z  } =^= {x, Z}
+mult {x,   S(Z) } =^= |{x}|
+mult {x, S(S(y))} =^=
+		let {x', m} = mult {x, S(y)}
+		in  plus {x', m}
 
+
+divide xy =^=
+		rlet xy = mult xy'
+		in   xy'
+
+compare {Z   ,   Z } =^= EQ(Z)
+compare {Z   , S(b)} =^= LT(Z,S(b))
+compare {S(a),   Z } =^= GT(S(a),Z)
+compare {S(a), S(b)} =^= 
+		let c = compare {a,b}
+		in case c of
+				EQ(a)    -> EQ(S(a))
+				LT(a, b) -> LT(S(a), S(b))
+				GT(a, b) -> GT(S(a), S(b))
+
+less {  Z , S(b)} =^= {Z, S(b)}
+less {S(a), S(b)} =^= 
+		let {a', b'} = less {a, b}
+		in  {S(a'), S(b')}
+
+neq {  Z , S(b)} =^= {Z, S(b)}
+neq {S(a),   Z } =^= {S(a), Z}
+neq {S(a), S(b)} =^= 
+		let {a', b'} = neq {a, b}
+		in  {S(a'), S(b')}
+
+eq {a,b} =^=
+		case |{a,b}| of
+				{x} -> x
 
 ---------------------------------------------------------------
----- LIST MANIPULATION
+---- LIST TRANSFORMATION
 ---------------------------------------------------------------
 
 -- scanr specialized to plus
-scanr {i,[]}      =^= {i,[]}
+scanr {i, []}     =^= {i, []}
 scanr {i, (x:xs)} =^= 
-  let {i', x'} = plus {i,x}
-      {x'',l} = scanr {x', xs}
-  in  {i',(x'':l)}
+	  let {i', x'} = plus {i, x}
+	      {x'', l} = scanr {x', xs}
+	  in  {i', (x'' : l)}
 
 -- scanl specialized to plus
-scanl {i,[]}      =^= {i,[]}
-scanl {i,[x]}     =^= 
-	let {i', x'} = plus {i,x}
-	in  {i', [x']}
-scanl {i, (x:z:xs)} =^= 
-	let {i', (y:ys)} = scanl {i,(z:xs)}
-	    {y',x'} = plus {y,x}
-	in  {i', (x':y':ys)}
+scanl {i, []}      =^= {i, []}
+scanl {i, [x]}     =^= 
+		let {i', x'} = plus {i, x}
+		in  {i', [x']}
+scanl {i, (x : z : xs)} =^= 
+		let {i', (y:ys)} = scanl {i, (z : xs)}
+		    {y', x'} = plus {y, x}
+		in  {i', (x' : y' : ys)}
 
 -- map specialized to inc
-map [] =^= []
-map (x:xs) =^= 
-	let x' = inc x
-	    xs' = map xs
-	in  (x':xs')
+map      []  =^= []
+map (x : xs) =^= 
+		let x' = inc x
+		    xs' = map xs
+		in  (x' : xs')
 
 reverse xs =^= 
-	let  {xs_s,xs'} = length xs
-	     {[],ys,xs_s'} = move {xs',[],xs_s} 
-	rlet {xs_s',ys} = length ys'
-	in   ys'
+		let  {xs_s, xs'}     = length xs
+		     {[], ys, xs_s'} = move {xs', [], xs_s} 
+		rlet {xs_s', ys}     = length ys'
+		in   ys'
 	
 -- This function in only partial
 --  helper to reverse
-move {x,l,Z}     =^= {x,l,Z}
-move {(x:xs),l,S(s)} =^= 
-	let {ys,ls,s'} = move {xs,(x:l),s} 
-	in  {ys,ls,S(s')}
+move {      x , l,   Z } =^= {x, l, Z}
+move {(x : xs), l, S(s)} =^= 
+		let {ys, ls, s'} = move {xs,(x:l),s} 
+		in  {ys, ls, S(s')}
 
-divideAt {Z,l} =^= {[],l}
-divideAt {S(s),(l:ls)} =^=
-	let {l1,l2} = divideAt {s,ls}
-	in {(l:l1),l2}
+-- splitAt is identical to the Haskell version
+splitAt {  Z ,       l } =^= {[],l}
+splitAt {S(s), (l : ls)} =^=
+		let {l1, l2} = splitAt {s, ls}
+		in {(l : l1), l2}
 
-ht (x:xs) =^= {x,xs}
+-- Finds the head and tail
+hdtl (x:xs) =^= {x,xs}
 
+-- Finds the last elements and the rest of the list
 last xs =^= 
-	let (x:xs') = reverse xs
-	    xs'' = reverse xs'
-	in  {x,xs''}
+		let (x : xs') = reverse xs
+		    xs''      = reverse xs'
+		in  {x, xs''}
 
--- This is also partial
 -- If it is called reverse and the N is not equal
 --   to the length of the list, I will fail.
 length [] =^= {Z,[]}
-length (x:xs) =^=
-	let {l,xs'} = length xs
-	in  {S(l), (x:xs')}
+length (x : xs) =^=
+		let {l, xs'} = length xs
+		in  {S(l), (x : xs')}
 
-append {[],l}      =^= {[],l}
-append {(x:xs), l} =^= 
-	let {xs',l'} = append {xs,l}
-	in  case |{x}| of
-			{x',x''} -> {(x':xs'), (x'':l')} 
+-- append function
+append {[],l}      =^= {[], l}
+append {(x : xs), l} =^=  
+		let {xs', l'} = append {xs, l}
+		in  case |{x}| of
+				{x', x''} -> {(x' : xs'), (x'' : l')} 
 
+-- The reverse of the append
 unAppend x =^=
-	rlet x = append x'
-	in x'
+		rlet x = append x'
+		in x'
 
+-- It is possible to diverge
+rec x =^= 
+	let x' = rec x
+	in x'
 
 ---------------------------------------------------------------
 ---- APPLICATIONS
@@ -124,12 +180,10 @@ unAppend x =^=
 pack [] =^= []
 pack (c1 : r) =^=
 		let s = pack r in
-			case s of
-				[] -> ({c1, S(Z)} : [])
-				(h : t) ->
-					case h of
-						{c2, n} ->
-							case |{c1,c2}| of
-								{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
-								{c} -> ({c, S(n)} : t)
+				case s of
+						[] -> ([{c1, S(Z)}])
+						({c2, n} : t) ->
+								case |{c1,c2}| of
+										{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
+										{c} -> ({c, S(n)} : t)
 
