@@ -71,7 +71,7 @@ divide :: [Ident] -> Substitution -> Eval (Substitution, Substitution)
 divide idents sub = 
 	if M.size sub1 == length idents
 	then return (sub1, sub2)
-	else failEval $ "Variables not found when dividing:\n\t" ++ show idents
+	else failEval $ "Variables not found when dividing:\n\t" ++ show idents ++ "\n" ++ show sub1
 	where
 		(sub1, sub2) = M.partitionWithKey (\k _ -> elem k idents) sub
 
@@ -126,9 +126,9 @@ evalDupEq :: Value -> Eval Value
 -- Unary tuple is copied
 evalDupEq (ConstrV "Tuple" [value]) = return $ ConstrV "Tuple" [value,value]
 -- Binary tuple becomes a unary if values are equal, otherwise unchanged
-evalDupEq (ConstrV "Tuple" [value1,value2])
+evalDupEq c@(ConstrV "Tuple" [value1,value2])
 	| value1 == value2 = return $ ConstrV "Tuple" [value1]
-	| otherwise        = return $ ConstrV "Tuple" [value1, value2]
+	| otherwise        = return $ c
 evalDupEq _ = failEval "Value is not a unary or binary tuple"
 
 -- |R-Match (Fig. 2, p. 18) that returns a substitution.
