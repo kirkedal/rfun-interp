@@ -187,3 +187,6 @@ pack (c1 : r) =^=
 										{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
 										{c} -> ({c, S(n)} : t)
 
+unpack l =^= 
+	rlet l = pack l'
+	in l'
