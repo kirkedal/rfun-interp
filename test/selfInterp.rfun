@@ -115,6 +115,7 @@ findvars  {DupEq(l), list} =^=
 -- ** The interpreter
 -------------------------------------------------------------------------------
 
+-- evalDupEq :: Value -> Value
 evalDupEq ConstrV(Tuple,[x,y]) =^= 
 	case |{x,y}| of
 		{x'} -> ConstrV(Tuple,[x'])
@@ -123,6 +124,10 @@ evalDupEq ConstrV(Tuple,[x]) =^=
 	let {x', x''} = dupEq {x}
 	in  ConstrV(Tuple,[x',x''])
 
+
+-- |evalRMatch have to be lifted to the "Either monad", as 
+-- | it is used to find minimum match. LExpr are always unchanged.
+-- evalRMatch :: {LExpr, Value} -> Either({LExpr,Value},{LExpr,Subst})
 evalRMatch {Var(x),value} =^= 
 	let {x',sub'} = insert {{x,value},[]}
 	in Right(Var(x'),sub')
@@ -154,28 +159,9 @@ evalRMatch {DupEq(l), value} =^=
 				rlet value'' = evalDupEq value'''
 				in Left(DupEq(l'),value''')
 
---evalRMatch {Var(x),value} =^= 
---	let {x',sub'} = insert {{x,value},[]}
---	in Right(Var(x'),sub')
---evalRMatch {Constr(c,[]),ConstrV(cV,[])} =^=
---	case |{c,cV}| of
---		{c'} -> Right(Constr(c',[]), [])
---		{c',cV'} -> Left(Constr(c,[]),ConstrV(cV,[]))
---evalRMatch {Constr(c,(v:vars)),ConstrV(cV,(vV:varsV))} =^=
---	let  c = evalRMatch {v,vV} in
---		case c of
---			Left(v',  val') ->
---			Right(v',  sub') ->
---	     {Constr(c',vars'), sub''} = evalRMatch {Constr(c,vars),ConstrV(cV,varsV)}
---	     {l,sub} = disUnion {sub',sub''}
---	rlet {v',l} = vars v''
---  in   {Constr(c',(v'':vars')), sub}
---evalRMatch {DupEq(l), value} =^=
---	let value' = dupEq value
---	    {l',sub'} = evalRMatch {l, value'}
---	in  {DupEq(l'), sub'}
-
-
+-- |Helper function that evaluates a function.
+-- |All inputs are unchanged expect the Subst -> Value
+-- evalFun :: {FunEnv, Ident, LExpr, Subst} -> {FunEnv, Ident, LExpr, Value}
 evalFun {funEnv, ident, lexpr, sub} =^=
 	let  {ident', {funL, funE}, funEnv'} = lookupFun {ident, funEnv}
 	     {LeftE(lexpr'), funEnv'', v'} = evalExp {LeftE(lexpr), funEnv', sub}
@@ -184,7 +170,9 @@ evalFun {funEnv, ident, lexpr, sub} =^=
 	rlet {ident', {funL', funE'}, funEnv'''} = lookupFun {ident'', funEnv''''}
 	in   {funEnv'''', ident'', lexpr', value}
 
-
+-- |Evaluation of expressions. 
+-- |All inputs are unchanged expect the Subst -> Value
+-- evalExp :: {Expr, FunEnv, Subst} -> {Expr, FunEnv, Value}
 evalExp {LeftE(l), funEnv, sub} =^=
 	rlet Right(l, sub) = evalRMatch {l', value}
 	in   {LeftE(l'), funEnv, value}
@@ -205,7 +193,7 @@ evalExp {RLetIn(lin, ident, lout, expr), funEnv, sub} =^=
 	let  {v_lout, sub_ef} = disUnion {sub_out, sub_e}
 	rlet {lout', v_lout} = findvars {lout'',[]}
 	let  {expr', funEnv'', v} = evalExp {expr, funEnv', sub_ef}
-	in   {LetIn(lin'', ident', lout'', expr'), funEnv'', v}
+	in   {RLetIn(lin'', ident', lout'', expr'), funEnv'', v}
 evalExp {CaseOf(lExpr, cases), funEnv, sub} =^=
 	let  {lExpr', v_lExpr} = findvars {lExpr,[]}
 	     {sub_l, sub_t} = divide {v_lExpr, sub}
@@ -255,7 +243,7 @@ checkLeavesOf {CaseOf(lExpr, []), value} =^=
 checkLeavesOf {CaseOf(lExpr, ({clExpr,cexpr}:cases)), value} =^=
 	let {r1, value'}  = checkLeavesOf {cexpr, value}
 	    {r2, value''} = checkLeavesOf {CaseOf(lExpr, cases), value'}
-	in case {r1, r2} of 
+	in  case {r1, r2} of 
 			{Left(cexpr'), Left(CaseOf(lExpr', cases'))}  -> 
 				{Left(CaseOf(lExpr', ({clExpr,cexpr'}:cases'))), value''}
 			{r1',r2'} ->
@@ -306,6 +294,14 @@ testPlus input =^=
 	     value' = fromValue output
 	in output
 
+testMinus input =^=
+	let  {ident, funEnv} = plus 12
+			 value = fromValue input
+			 {funEnv', ident', value'} = eval {ident, funEnv, value}
+	rlet {ident', funEnv'} = plus 12
+	     value' = fromValue output
+	in output
+
 --plus {x,  Z } =^= |{x}|
 --plus {x,S(u)} =^= 
 --    let {xp,up} = plus {x,u} 
@@ -316,10 +312,12 @@ plus x =^= {x,[{11,{ Constr(Tuple,[Var(10),Var(4)]),
 						{Constr(Q,[]), LeftE(DupEq(Constr(Tuple,[Var(10)])))}
 					, {Constr(X,[Var(12)]), 
 --							LeftE(Constr(Tuple,[Var(1),Var(3)]))
-							LetIn(Constr(Tuple,[Var(4), Var(5)]), 11, Constr(Tuple,[Var(10),Var(12)]), LeftE(Constr(Tuple,[Var(4),Constr(X, [Var(5)])])))
+							LetIn(Constr(Tuple,[Var(4), Var(5)]), 11, Constr(Tuple,[Var(10),Var(12)]), 
+								LeftE(Constr(Tuple,[Var(4),Constr(X, [Var(5)])])))
 						}
 				])
-					}}]}
+					}},
+					{1, {Var(1), RLetIn(Var(1), 11, Var(2), LeftE(Var(2)))} }]}
 
 
 fromValue Z    =^= ConstrV(Q,[])
