@@ -9,13 +9,13 @@ id x =^= x
 
 -- It is possible to diverge
 rec x =^= 
-	let x' = rec x
-	in x'
+		let x' = rec x
+		in x'
 
 -- |Implemententation of |.| as a function
 dupEq v =^=
-	case |v| of
-		v' -> v'
+		case |v| of
+				v' -> v'
 
 ---------------------------------------------------------------
 ---- ARITHMETIC
@@ -156,7 +156,7 @@ move {(x : xs), l, S(s)} =^=
 splitAt {  Z ,       l } =^= {[],l}
 splitAt {S(s), (l : ls)} =^=
 		let {l1, l2} = splitAt {s, ls}
-		in {(l : l1), l2}
+		in  {(l : l1), l2}
 
 -- Finds the head and tail
 hdtl (x:xs) =^= {x,xs}
@@ -193,13 +193,12 @@ unAppend x =^=
 -- pack :: Eq a => [a] -> [a * N]
 pack [] =^= []
 pack (c1 : r) =^=
-		let s = pack r in
-				case s of
-						[] -> ([{c1, S(Z)}])
-						({c2, n} : t) ->
-								case |{c1,c2}| of
-										{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
-										{c} -> ({c, S(n)} : t)
+	case pack r of
+			[] -> ([{c1, S(Z)}])
+			({c2, n} : t) ->
+					case |{c1,c2}| of
+							{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
+							{c} -> ({c, S(n)} : t)
 
 unpack l =^= 
 	rlet l = pack l'
