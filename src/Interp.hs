@@ -217,7 +217,7 @@ evalExpS funcEnv e@(CaseOf lExpr matches) value =
 		-- A consistency check with val_p against previous l in cases
 		let takenMatches = take j matches
 		    takenLExpr = map fst takenMatches
-		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val_p) $ 
+		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val_p ++ "\nin expression:\n\t" ++ pretty e) $ 
 						checkLExprs evalRMatchS val_p sub_lt takenLExpr
 	where 
 		allLeaves = zip [0..] $ map (leaves.snd) matches
@@ -255,7 +255,7 @@ evalExpV funcEnv sub e@(CaseOf lExpr matches) =
 		let takenMatches = take j matches
 		    takenExpr = map snd takenMatches
 		    leaves_j = concatMap leaves takenExpr
-		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val) $
+		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val ++ "\nin expression:\n\t" ++ pretty e) $
 			 			checkLeaves evalRMatchS val leaves_j
 	where 
 		vars = findVars lExpr
