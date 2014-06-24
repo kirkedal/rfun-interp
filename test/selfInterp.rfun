@@ -1,0 +1,341 @@
+-------------------------------------------------------------------------------
+-- ** Standard functions
+-------------------------------------------------------------------------------
+
+-- |Implemententation of |.| as a function
+dupEq v =^=
+	case |v| of
+		v' -> v'
+
+-- |Zip
+zip {[],[]} =^= []
+zip {(x:xs),(y:ys)} =^=
+	let zs = zip {xs, ys}
+	in  ({x,y}:zs)
+
+-- |Unzip
+unzip v =^= rlet v = zip v' in v'
+
+-- |Addition
+plus {x,  Z } =^= |{x}|
+plus {x,S(u)} =^= 
+    let {xp,up} = plus {x,u} 
+    in  {xp, S(up)}
+
+-- |scanr specialized to plus
+scanrPlus {i, []}     =^= {i, []}
+scanrPlus {i, (x:xs)} =^= 
+	  let {i', x'} = plus {i, x}
+	      {x'', l} = scanrPlus {x', xs}
+	  in  {i', (x'' : l)}
+
+-------------------------------------------------------------------------------
+-- ** Substitutions and functions on these
+-------------------------------------------------------------------------------
+-- |A substitution is a list of integers to values
+-- |The list is ordered and implemented such that the difference (and not the 
+-- |absolute value) is saved.
+--| E.g., in [{1,A}, {1,B}] we have that lookup {1, ..} is A and lookup {2,..} is B
+
+-- lookup :: {N,[{N,a}]} -> {{N,a},[{N,a}]}
+lookup {Z, ({Z,v}:sub)} =^= {{Z,v},sub}
+lookup {S(a), ({Z,v}:sub)} =^= 
+	let {{a',r}, sub'} = lookup {S(a), sub}
+	in  {{a',r}, ({Z,v}:sub')}
+lookup {S(a), ({S(b),v}:sub)} =^= 
+	let {{a',r}, l} = lookup {a, ({b,v}:sub)} in
+	case l of
+		[] -> {{S(a'),r}, []}
+		({b',v}:sub') -> {{S(a'),r}, ({S(b'),v}:sub')}
+
+-- insert :: {{N,a},[{N,a}]} -> {N,[{N,a}]}
+insert v =^= rlet v = lookup v' in v'
+
+-- |This is actually scanr specialised to insert
+-- disUnion :: {[{N,a}],[{N,a}]} -> {[N],[{N,a}]}
+disUnion {sub1, sub2} =^= 
+	let  {x,v} = unzip sub1
+	     {0, xInc} = scanrPlus {0,x}
+	     sub1Inc = zip {xInc,v}
+			 {listInc, sub} = disUnionh {sub1Inc, sub2}
+  rlet {0 , listInc}  = scanrPlus {0, list} 
+	in  {list, sub}
+
+-- | Basically a scanr specialised to insert
+disUnionh {[],sub}  =^= {[], sub}
+disUnionh {(x:xs), sub} =^= 
+	let {xs', sub'} = disUnionh {xs, sub}
+			{x' , sub''}  = insert {x, sub'} 
+	in  {(x' : xs'), sub''}
+
+-- divide :: {[N],[{N,a}]} -> {[{N,a}],[{N,a}]}
+divide v =^= rlet v = disUnion v' in v'
+
+-- |Similar to lookup, but copies and inserts the fount value again
+-- loopupFun :: {N,[{N,a}]} -> {{N,a},[{N,a}]}
+lookupFun {ident, funEnv} =^=
+	let {{ident', v}, funEnv'} = lookup {ident, funEnv}
+	    {v',v''} = dupEq {v}
+	    {ident'',funEnv''} = insert {{ident', v'}, funEnv'}
+	in  {ident'', v'', funEnv''}
+
+-------------------------------------------------------------------------------
+-- ** Finding variables
+-------------------------------------------------------------------------------
+
+-- |This function is similar to lookup, but without a value
+remove {Z, (Z:sub)} =^= {Z,sub}
+remove {S(a), (Z:sub)} =^= 
+	let {a', sub'} = remove {S(a), sub}
+	in  {a', (Z:sub')}
+remove {S(a), (S(b):sub)} =^= 
+	let {a', l} = remove {a, (b:sub)} in
+	case l of
+		[] -> {S(a'), []}
+		(b':sub') -> {S(a'), (S(b'):sub')}
+
+add v =^= rlet v = remove v' in v'
+
+-- |Find the variables in a give left-expression
+-- findvars :: {LExpr, [N]} -> {LExpr, [N]}
+findvars {Var(x),list} =^= 
+	let {x',list'} = add {x,list}
+	in  {Var(x'), list'}
+-- The following to would be better implemented with a map function
+findvars {Constr(c,[]),list} =^= {Constr(c,[]),list}
+findvars {Constr(c,(v:vars)),list} =^= 
+	let {v', list'} = findvars {v,list}
+	    {Constr(c',vars'), list''} = findvars {Constr(c,vars), list'}
+  in  {Constr(c',(v':vars')), list''}
+findvars  {DupEq(l), list} =^=
+	let {l',list'} = findvars {l,list}
+	in  {DupEq(l'), list'}
+
+-------------------------------------------------------------------------------
+-- ** The interpreter
+-------------------------------------------------------------------------------
+
+evalDupEq ConstrV(Tuple,[x,y]) =^= 
+	case |{x,y}| of
+		{x'} -> ConstrV(Tuple,[x'])
+		{x',y'} -> ConstrV(Tuple,[x',y'])
+evalDupEq ConstrV(Tuple,[x]) =^= 
+	let {x', x''} = dupEq {x}
+	in  ConstrV(Tuple,[x',x''])
+
+evalRMatch {Var(x),value} =^= 
+	let {x',sub'} = insert {{x,value},[]}
+	in Right(Var(x'),sub')
+evalRMatch {Constr(c,[]),ConstrV(cV,[])} =^=
+	case |{c,cV}| of
+		{c'} -> Right(Constr(c',[]), [])
+		{c',cV'} -> Left(Constr(c',[]),ConstrV(cV',[]))
+evalRMatch {Constr(c,[]),ConstrV(cV,(v:varsV))} =^=
+	Left(Constr(c,[]),ConstrV(cV,(v:varsV)))
+evalRMatch {Constr(c,(v:vars)),ConstrV(cV,[])} =^=
+	Left(Constr(c,(v:vars)),ConstrV(cV,[]))
+evalRMatch {Constr(c,(v:vars)),ConstrV(cV,(vV:varsV))} =^=
+	let r1 = evalRMatch {v,vV}
+	    r2 = evalRMatch {Constr(c,vars),ConstrV(cV,varsV)}
+	in case {r1,r2} of
+			{Right(v',  sub'), Right(Constr(c',vars'), sub'')} ->
+				let  {l,sub} = disUnion {sub',sub''}
+				rlet {v',l} = findvars {v'',[]}
+				in   Right(Constr(c',(v'':vars')), sub)
+	  	{r1',r2'} ->
+				rlet r1' = evalRMatch {v', vV'}
+						 r2' = evalRMatch {Constr(c',vars'),ConstrV(cV',varsV')}
+				in   Left(Constr(c',(v':vars')), ConstrV(cV',(vV':varsV')))
+evalRMatch {DupEq(l), value} =^=
+	let value' = evalDupEq value
+	in case evalRMatch {l, value'} of
+			Right(l',sub') -> Right(DupEq(l'), sub')
+			Left(l',value'') ->
+				rlet value'' = evalDupEq value'''
+				in Left(DupEq(l'),value''')
+
+--evalRMatch {Var(x),value} =^= 
+--	let {x',sub'} = insert {{x,value},[]}
+--	in Right(Var(x'),sub')
+--evalRMatch {Constr(c,[]),ConstrV(cV,[])} =^=
+--	case |{c,cV}| of
+--		{c'} -> Right(Constr(c',[]), [])
+--		{c',cV'} -> Left(Constr(c,[]),ConstrV(cV,[]))
+--evalRMatch {Constr(c,(v:vars)),ConstrV(cV,(vV:varsV))} =^=
+--	let  c = evalRMatch {v,vV} in
+--		case c of
+--			Left(v',  val') ->
+--			Right(v',  sub') ->
+--	     {Constr(c',vars'), sub''} = evalRMatch {Constr(c,vars),ConstrV(cV,varsV)}
+--	     {l,sub} = disUnion {sub',sub''}
+--	rlet {v',l} = vars v''
+--  in   {Constr(c',(v'':vars')), sub}
+--evalRMatch {DupEq(l), value} =^=
+--	let value' = dupEq value
+--	    {l',sub'} = evalRMatch {l, value'}
+--	in  {DupEq(l'), sub'}
+
+
+evalFun {funEnv, ident, lexpr, sub} =^=
+	let  {ident', {funL, funE}, funEnv'} = lookupFun {ident, funEnv}
+	     {LeftE(lexpr'), funEnv'', v'} = evalExp {LeftE(lexpr), funEnv', sub}
+	     Right(funL', sub_f) = evalRMatch {funL, v'}
+	     {funE', funEnv''', value} = evalExp {funE, funEnv'', sub_f}
+	rlet {ident', {funL', funE'}, funEnv'''} = lookupFun {ident'', funEnv''''}
+	in   {funEnv'''', ident'', lexpr', value}
+
+
+evalExp {LeftE(l), funEnv, sub} =^=
+	rlet Right(l, sub) = evalRMatch {l', value}
+	in   {LeftE(l'), funEnv, value}
+evalExp {LetIn(lout, ident, lin, expr), funEnv, sub} =^=
+	let  {lin', v_lin} = findvars {lin,[]}
+	     {sub_in,sub_e} = divide {v_lin, sub}
+	     {funEnv', ident', lin'', vout} = evalFun {funEnv, ident, lin', sub_in}
+	     Right(lout', sub_out) = evalRMatch {lout, vout}
+	     {v_lout, sub_ef} = disUnion {sub_out, sub_e}
+	rlet {lout', v_lout} = findvars {lout'',[]}
+	let  {expr', funEnv'', v} = evalExp {expr, funEnv', sub_ef}
+	in   {LetIn(lout'', ident', lin'', expr'), funEnv'', v}
+evalExp {RLetIn(lin, ident, lout, expr), funEnv, sub} =^=
+	let  {lin', v_lin} = findvars {lin,[]}
+	     {sub_in,sub_e} = divide {v_lin, sub}
+	rlet Right(lin', sub_in) = evalRMatch {lin'', vin}
+	     {funEnv, ident, lout, vin} = evalFun {funEnv', ident', lout', sub_out}
+	let  {v_lout, sub_ef} = disUnion {sub_out, sub_e}
+	rlet {lout', v_lout} = findvars {lout'',[]}
+	let  {expr', funEnv'', v} = evalExp {expr, funEnv', sub_ef}
+	in   {LetIn(lin'', ident', lout'', expr'), funEnv'', v}
+evalExp {CaseOf(lExpr, cases), funEnv, sub} =^=
+	let  {lExpr', v_lExpr} = findvars {lExpr,[]}
+	     {sub_l, sub_t} = divide {v_lExpr, sub}
+	     {LeftE(lExpr''), funEnv', vp} = evalExp {LeftE(lExpr'), funEnv, sub_l}    
+	     {i, {cLExpr,cExpr}, cases', sub_j} = checkCases {cases, vp}
+	     {v_sub_j,sub_jt} = disUnion {sub_j, sub_t}
+	rlet {cLExpr, v_sub_j} = findvars {cLExpr',[]}
+	let  {cExpr', funEnv'', value} = evalExp {cExpr, funEnv', sub_jt}
+	rlet {i,{cLExpr',cExpr'}, cases', value} = checkLeaves {cases'', value'}
+	in   {CaseOf(lExpr'', cases''), funEnv'', value'}
+
+
+checkCases {({lExpr,expr}:cases), value} =^=
+	case evalRMatch {lExpr, value} of
+		Right(lExpr', sub) -> 
+			let {le1,le2} = dupEq {{lExpr',expr}}
+			in  {Z, le1, (le2:cases), sub}
+		Left(lExpr', value') -> 
+			let {n, le, cases', sub} = checkCases{cases, value'}
+			in {S(n), le, ({lExpr',expr}:cases'), sub}
+
+checkLeaves{({lExpr,expr}:cases), value} =^= 
+	case checkLeavesOf {expr, value} of
+		{Right(expr'), value'} ->
+			let {le1,le2} = dupEq {{lExpr,expr'}}
+			in  {Z, le1, (le2:cases), value'}
+		{Left(expr'), value'} ->
+			let {n, le, cases', value''} = checkLeaves {cases, value'}
+			in  {S(n), le, ({lExpr,expr'}:cases'), value''}
+
+checkLeavesOf {LeftE(lExpr), value} =^= 
+	case evalRMatch {lExpr, value} of
+		Right(lExpr', sub) -> 
+			rlet Right(lExpr', sub) = evalRMatch {lExpr'', value'}
+			in   {Right(LeftE(lExpr'')), value'}
+		Left(lExpr', value') -> {Left(LeftE(lExpr')), value'}
+checkLeavesOf {LetIn(lout, ident, lin, expr), value} =^=
+	case checkLeavesOf {expr, value} of
+		{Right(expr'), value'} -> {Right(LetIn(lout, ident, lin, expr')), value'}
+		{Left(expr'), cvalue'} -> {Left(LetIn(lout, ident, lin, expr')) , value'}
+checkLeavesOf {RLetIn(lout, ident, lin, expr), value} =^=
+	case checkLeavesOf {expr, value} of
+		{Right(expr'), value'} -> {Right(RLetIn(lout, ident, lin, expr')), value'}
+		{Left(expr') , value'} -> {Left(RLetIn(lout, ident, lin, expr')) , value'}
+checkLeavesOf {CaseOf(lExpr, []), value} =^=
+	{Left(CaseOf(lExpr, [])), value}
+checkLeavesOf {CaseOf(lExpr, ({clExpr,cexpr}:cases)), value} =^=
+	let {r1, value'}  = checkLeavesOf {cexpr, value}
+	    {r2, value''} = checkLeavesOf {CaseOf(lExpr, cases), value'}
+	in case {r1, r2} of 
+			{Left(cexpr'), Left(CaseOf(lExpr', cases'))}  -> 
+				{Left(CaseOf(lExpr', ({clExpr,cexpr'}:cases'))), value''}
+			{r1',r2'} ->
+				rlet {r2', value''} = checkLeavesOf {CaseOf(lExpr', cases'), value'''}
+						 {r1', value'''}  = checkLeavesOf {cexpr', value''''}
+				in {Right(CaseOf(lExpr', ({clExpr,cexpr'}:cases'))), value''''}
+
+
+eval {ident, funEnv, value_i} =^=
+	let  {ident', {funL, funE}, funEnv'} = lookupFun {ident, funEnv}
+       Right(funL', sub_f) = evalRMatch {funL, value_i}
+	     {funE', funEnv'', value_o} = evalExp {funE, funEnv', sub_f}
+	rlet {ident', {funL', funE'}, funEnv''} = lookupFun {ident'', funEnv'''}
+	in   {funEnv''', ident'', value_o}
+
+
+
+
+-------------------------------------------------------------------------------
+-- ** Testing
+-------------------------------------------------------------------------------
+
+--1 as ConstrV(S, [ConstrV(Z,[])])
+testInc input =^=
+	let  {ident, funEnv} = inc 10
+			 value = fromValue input
+			 {funEnv', ident', value'} = eval {ident, funEnv, value}
+	rlet {ident', funEnv'} = inc 10
+	     value' = fromValue output
+	in output
+
+--inc Z =^= S(Z)
+--inc S(np) =^= 
+--		let npp = inc np 
+--		in  S(npp)
+
+inc x =^= {x,[{10,{Var(1), 
+				CaseOf(Var(1), [
+						{Constr(Z,[]), LeftE(Constr(S, [Constr(Z,[])]))}
+					, {Constr(S,[Var(2)]), LetIn(Var(3), 10, Var(2), LeftE(Constr(S, [Var(3)])))}
+					])}}]}
+
+testPlus input =^=
+	let  {ident, funEnv} = plus 11
+			 value = fromValue input
+			 {funEnv', ident', value'} = eval {ident, funEnv, value}
+	rlet {ident', funEnv'} = plus 11
+	     value' = fromValue output
+	in output
+
+--plus {x,  Z } =^= |{x}|
+--plus {x,S(u)} =^= 
+--    let {xp,up} = plus {x,u} 
+--    in  {xp, S(up)}
+
+plus x =^= {x,[{11,{ Constr(Tuple,[Var(10),Var(4)]), 
+				CaseOf(Var(4), [
+						{Constr(Q,[]), LeftE(DupEq(Constr(Tuple,[Var(10)])))}
+					, {Constr(X,[Var(12)]), 
+--							LeftE(Constr(Tuple,[Var(1),Var(3)]))
+							LetIn(Constr(Tuple,[Var(4), Var(5)]), 11, Constr(Tuple,[Var(10),Var(12)]), LeftE(Constr(Tuple,[Var(4),Constr(X, [Var(5)])])))
+						}
+				])
+					}}]}
+
+
+fromValue Z    =^= ConstrV(Q,[])
+fromValue S(n) =^= 
+	let v = fromValue n
+	in  ConstrV(X, [v])
+fromValue {x,y} =^= 
+	let x' = fromValue x
+			y' = fromValue y
+	in  ConstrV(Tuple, [x',y'])
+fromValue {x} =^= 
+	let x' = fromValue x
+	in  ConstrV(Tuple, [x'])
+
+
+
+
+
+
