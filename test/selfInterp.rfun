@@ -233,7 +233,7 @@ checkLeavesOf {LeftE(lExpr), value} =^=
 checkLeavesOf {LetIn(lout, ident, lin, expr), value} =^=
 	case checkLeavesOf {expr, value} of
 		{Right(expr'), value'} -> {Right(LetIn(lout, ident, lin, expr')), value'}
-		{Left(expr'), cvalue'} -> {Left(LetIn(lout, ident, lin, expr')) , value'}
+		{Left(expr'),  value'} -> {Left(LetIn(lout, ident, lin, expr')) , value'}
 checkLeavesOf {RLetIn(lout, ident, lin, expr), value} =^=
 	case checkLeavesOf {expr, value} of
 		{Right(expr'), value'} -> {Right(RLetIn(lout, ident, lin, expr')), value'}
@@ -309,21 +309,21 @@ testMinus input =^=
 
 plus x =^= {x,[{11,{ Constr(Tuple,[Var(10),Var(4)]), 
 				CaseOf(Var(4), [
-						{Constr(Q,[]), LeftE(DupEq(Constr(Tuple,[Var(10)])))}
-					, {Constr(X,[Var(12)]), 
+						{Constr(Z,[]), LeftE(DupEq(Constr(Tuple,[Var(10)])))}
+					, {Constr(S,[Var(12)]), 
 --							LeftE(Constr(Tuple,[Var(1),Var(3)]))
 							LetIn(Constr(Tuple,[Var(4), Var(5)]), 11, Constr(Tuple,[Var(10),Var(12)]), 
-								LeftE(Constr(Tuple,[Var(4),Constr(X, [Var(5)])])))
+								LeftE(Constr(Tuple,[Var(4),Constr(S, [Var(5)])])))
 						}
 				])
 					}},
 					{1, {Var(1), RLetIn(Var(1), 11, Var(2), LeftE(Var(2)))} }]}
 
 
-fromValue Z    =^= ConstrV(Q,[])
+fromValue Z    =^= ConstrV(Z,[])
 fromValue S(n) =^= 
 	let v = fromValue n
-	in  ConstrV(X, [v])
+	in  ConstrV(S, [v])
 fromValue {x,y} =^= 
 	let x' = fromValue x
 			y' = fromValue y
