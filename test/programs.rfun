@@ -7,6 +7,16 @@ swap {x,y} =^= {y,x}
 
 id x =^= x
 
+-- It is possible to diverge
+rec x =^= 
+	let x' = rec x
+	in x'
+
+-- |Implemententation of |.| as a function
+dupEq v =^=
+	case |v| of
+		v' -> v'
+
 ---------------------------------------------------------------
 ---- ARITHMETIC
 ---------------------------------------------------------------
@@ -96,6 +106,15 @@ eq {a,b} =^=
 ---- LIST TRANSFORMATION
 ---------------------------------------------------------------
 
+-- |Zip
+zip {[],[]} =^= []
+zip {(x:xs),(y:ys)} =^=
+	let zs = zip {xs, ys}
+	in  ({x,y}:zs)
+
+-- |Unzip
+unzip v =^= rlet v = zip v' in v'
+
 -- scanr specialized to plus
 scanr {i, []}     =^= {i, []}
 scanr {i, (x:xs)} =^= 
@@ -166,11 +185,6 @@ append {(x : xs), l} =^=
 unAppend x =^=
 		rlet x = append x'
 		in x'
-
--- It is possible to diverge
-rec x =^= 
-	let x' = rec x
-	in x'
 
 ---------------------------------------------------------------
 ---- APPLICATIONS
