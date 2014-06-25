@@ -18,13 +18,11 @@ module Parser (parseString, parseFromFile, parseValue, ParseError) where
 
 import Text.ParserCombinators.Parsec hiding (parse,parseFromFile)
 import qualified Text.Parsec.Token as P
-import Text.Parsec.Language
-import qualified Text.Parsec.Char as PC
+--import Text.Parsec.Language
+--import qualified Text.Parsec.Char as PC
 import Text.Parsec.Prim (runP)
-import qualified Text.ParserCombinators.Parsec.Expr as E
-
-import Control.Monad
-import Data.Maybe
+--import qualified Text.ParserCombinators.Parsec.Expr as E
+import Data.Functor.Identity
 
 import Ast
 
@@ -38,7 +36,8 @@ type LangParser = GenParser Char ParserState
 -- * Functions for parsing values and programs
 -------------------------------------------------------------------------------
 
-parse' p = parse p "could not parse"
+--parse' p = parse p "could not parse"
+parse :: LangParser a -> String -> String -> Either ParseError a
 parse p = runP p initialState
 
 parseFromFile :: String -> IO (Either ParseError Program)
@@ -56,6 +55,7 @@ parseValue input = return $ parse value "Value" input
 -- * Implementation of the parser
 -------------------------------------------------------------------------------
 
+cStyle :: P.GenLanguageDef String st Identity
 cStyle = P.LanguageDef {
   P.commentStart    = "",
   P.commentEnd      = "",
@@ -71,20 +71,18 @@ cStyle = P.LanguageDef {
 }
 
 -- |Used to conveniently create the parsers 'natural', 'constant', and 'identifier'
+lexer :: P.GenTokenParser String u Identity
 lexer = P.makeTokenParser cStyle
 
 -- |Parses a natural number
+natural :: CharParser st Integer
 natural = P.natural lexer
 
--- |Parses a colon
-colon = P.colon lexer
-
+lexeme :: CharParser st a -> CharParser st a
 lexeme = P.lexeme lexer
 
--- |Parses the character ',' and skips any trailing white space. Returns the string ",".
-comma = P.comma lexer
-
 -- |Parses white space
+whiteSpace :: CharParser st ()
 whiteSpace = P.whiteSpace lexer
 
 -- |Parses the string s and skips trailing whitespaces
@@ -97,20 +95,25 @@ identifier = P.identifier lexer
 
 -- |Parser @(parens p)@ parses p and trailing whitespaces enclosed in parenthesis ('(' and ')'),
 --  returning the value of p.
+parens :: CharParser st a -> CharParser st a
 parens = P.parens lexer
 
 -- |Parser @(brackets p)@ parses p and trailing whitespaces enclosed in square brackets ('[' and ']'),
 --  returning the value of p.
+brackets :: CharParser st a -> CharParser st a
 brackets = P.squares lexer
 
+braces :: CharParser st a -> CharParser st a
 braces = P.braces lexer
 
+reserved :: String -> CharParser st ()
 reserved = P.reserved lexer
 
 -- |Parses a constant (i.e. a number)
 --
 -- Looks kinda useless but the definition of constant is not fixed
 --constant :: CharParser st Const
+constant :: CharParser st Int
 constant = lexeme natural >>= return . fromIntegral
 
 --eol = string "\n"
@@ -132,11 +135,11 @@ expr = try letin <|> try rletin <|> try caseofF <|> try caseof <|> try apply <|>
         letin  = do reserved "let"
                     l <- many1 assign
                     e <- choice [inPart, letin, rletin]
-                    return $ foldr (\(lExpr1, ident, lExpr2) e -> LetIn lExpr1 ident lExpr2 e) e l
+                    return $ foldr (\(lExpr1, ident, lExpr2) ex -> LetIn lExpr1 ident lExpr2 ex) e l
         rletin = do reserved "rlet"
                     l <- many1 assign
                     e <- choice [inPart, letin, rletin]
-                    return $ foldr (\(lExpr1, ident, lExpr2) e -> RLetIn lExpr1 ident lExpr2 e) e l
+                    return $ foldr (\(lExpr1, ident, lExpr2) ex -> RLetIn lExpr1 ident lExpr2 ex) e l
         inPart = do reserved "in"
                     e <- expr
                     return $ e
@@ -170,15 +173,16 @@ expr = try letin <|> try rletin <|> try caseofF <|> try caseof <|> try apply <|>
                     e <- expr
                     return (le,e)
 
+constToConstr :: Int -> LExpr
 constToConstr 0 = Constr "Z" []
 constToConstr n = Constr "S" [constToConstr (n-1)]
 
 lexpr :: LangParser LExpr
-lexpr = try const <|> try var <|> try tuple <|> try dupeq <|> try constr <|> try constrN <|> try list1 <|> try list2 <|> parenE
+lexpr = try consta <|> try vari <|> try tuple <|> try dupeq <|> try constr <|> try constrN <|> try list1 <|> try list2 <|> parenE
     where
-        const  = do c <- constant
+        consta = do c <- constant
                     return $ constToConstr c
-        var    = do lookAhead (lower)
+        vari   = do lookAhead (lower)
                     var <- identifier
                     return $ Var var
         tuple  = do les <- braces $ lexpr `sepBy1` (symbol ",")
@@ -204,14 +208,14 @@ lexpr = try const <|> try var <|> try tuple <|> try dupeq <|> try constr <|> try
 
 
 -- Parsing values
-
+constToValue :: Int -> Value
 constToValue 0 = ConstrV "Z" []
 constToValue n = ConstrV "S" [constToValue (n-1)]
 
 value :: LangParser Value
-value = try const <|> try tuple <|> try constr <|> try constrN <|> try list <|> parenV
+value = try consta <|> try tuple <|> try constr <|> try constrN <|> try list <|> parenV
     where
-        const  = do c <- constant
+        consta = do c <- constant
                     return $ constToValue c
         tuple  = do les <- braces $ value `sepBy1` (symbol ",")
                     return $ ConstrV "Tuple" les

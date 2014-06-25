@@ -24,9 +24,6 @@ module Interp where
 import Ast
 import qualified Data.Map as M
 import Control.Monad
-import Control.Applicative
-import Data.Maybe
-import Data.List
 
 -------------------------------------------------------------------------------
 -- * Interpreter main
@@ -38,6 +35,7 @@ evalMaybe e Nothing = failEval e
 evalMaybe _ (Just a) = return a
 
 -- |Simple fail
+failEval :: a -> Either a b
 failEval = Left
 
 -- |Interpreting an rFun program
@@ -88,11 +86,11 @@ lookupDivide ident sub =
 disUnion :: Substitution -> Substitution -> Eval Substitution
 disUnion subs1 subs2 = 
 	if union_size == subs1_size + subs2_size
-	then return union
+	then return union12
 	else failEval "Substitutions are not disjoint"
 	where
-		union = M.union subs1 subs2
-		union_size = M.size union
+		union12 = M.union subs1 subs2
+		union_size = M.size union12
 		subs1_size = M.size subs1
 		subs2_size = M.size subs2
 
@@ -114,7 +112,7 @@ lookupFunction :: FuncEnv -> Ident -> Eval (LExpr, Expr)
 lookupFunction funcEnv ident = 
 	case M.lookup ident funcEnv of 
 		Just(func) -> return (param func, body func)
-		otherwise  -> failEval ("Function "++ ident ++" not found")
+		Nothing    -> failEval ("Function "++ ident ++" not found")
 
 
 -------------------------------------------------------------------------------

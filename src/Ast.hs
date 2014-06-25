@@ -77,7 +77,7 @@ valueToLExpr (ConstrV ident values) =
 constrToNum :: LExpr -> Maybe Int
 constrToNum (Constr "Z" []) = Just 0
 constrToNum (Constr "S" [lExpr]) = do n <- constrToNum lExpr ; Just $ n + 1
-constrToNum c = Nothing
+constrToNum _c = Nothing
 
 -- |An error is a String
 type Error = String
@@ -87,6 +87,7 @@ type Eval a = Either Error a
 -- |Function environments (to be used later) is a mapping from Identifiers to a Function
 type FuncEnv = M.Map Ident Func
 
+prettyFuncEnv :: FuncEnv -> String
 prettyFuncEnv funcEnv = 
   intercalate "\n" $ map (pretty.snd) $ M.toList funcEnv
 
@@ -95,11 +96,11 @@ class Pretty a where
   pretty :: a -> String
 
 instance Pretty Func where
-  pretty (Func funcname param body) = funcname ++ " " ++ pretty param ++ " =^= \n" ++ pretty body
+  pretty (Func funname funparam funbody) = funname ++ " " ++ pretty funparam ++ " =^= \n" ++ pretty funbody
 
 instance Pretty LExpr where
   pretty (Var ident) = ident
-  pretty (Constr "Z" []) = show $ 0
+  pretty (Constr "Z" []) = "0"
   pretty c@(Constr "S" lExprs) = 
     case constrToNum c of
       Just n -> show n

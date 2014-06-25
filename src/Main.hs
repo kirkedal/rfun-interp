@@ -21,15 +21,13 @@
 module Main (main) where
 
 import Ast
+import Parser (parseFromFile, parseValue, parseString, ParseError)
 import Preparse (runPreparse)
 import Interp (runProg)
-import Parser (parseFromFile, parseValue, parseString, ParseError)
 import System.Environment
 import System.Exit
 import System.Timeout
-import Control.Monad
 
-import Data.List
 
 -- |Main function
 main :: IO ()
@@ -61,7 +59,8 @@ parseAndPre filename =
 	do
 		prg    <- fromParsecError =<< parseInput filename
 		let funEnv = runPreparse prg
-		putStrLn $ prettyFuncEnv funEnv
+--		putStrLn $ prettyFuncEnv funEnv
+		putStrLn $ show funEnv
 
 parseInput :: String -> IO (Either ParseError Program)
 parseInput "-"  = parseString =<< getContents

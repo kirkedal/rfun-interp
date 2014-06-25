@@ -1,7 +1,10 @@
 FILES=Ast.hs Interp.hs Main.hs Parser.hs Preparse.hs
 
 rfun: $(FILES)
-	ghc --make Main.hs
+	ghc --make  -Wall -fno-warn-unused-do-bind Main.hs
+
+optimized: $(FILES)
+	ghc -O2 -rtsopts --make Main.hs
 
 haddock, h: $(FILES)
 	haddock -h -o ../docs/ Main.hs
