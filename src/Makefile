@@ -6,7 +6,7 @@ rfun: $(FILES)
 optimized: $(FILES)
 	ghc -O2 -rtsopts --make Main.hs
 
-haddock, h: $(FILES)
+haddock h: $(FILES)
 	haddock -h -o ../docs/ Main.hs
 
 clean:

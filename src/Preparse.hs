@@ -34,6 +34,7 @@ runPreparse program = M.fromList funcEnv
 		funcEnvSS = programToFuncEnvSS program
 		funcEnv = desugarArgPatMatch funcEnvSS
 
+-- |General function that applies a function to all function bodies in a program.
 applyToFunctionBody :: (Expr -> Expr) -> Program -> Program
 applyToFunctionBody fun prog = map app prog
 	where

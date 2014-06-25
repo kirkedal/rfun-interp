@@ -40,14 +40,17 @@ type LangParser = GenParser Char ParserState
 parse :: LangParser a -> String -> String -> Either ParseError a
 parse p = runP p initialState
 
+-- |Parse a RFun program from a file
 parseFromFile :: String -> IO (Either ParseError Program)
 parseFromFile fname
     = do input <- readFile fname
          return (parse program fname input)
 
+-- |Parse a RFun program from a string
 parseString :: String -> IO (Either ParseError Program)
 parseString input = return $ parse program "Text field" input
 
+-- |Parse a RFun value from a string
 parseValue :: String -> IO (Either ParseError Value)
 parseValue input = return $ parse value "Value" input
 

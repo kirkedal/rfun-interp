@@ -16,7 +16,7 @@
 --    Towards a reversible functional language
 --    LNCS vol. 7165, pp. 14--29, 2012
 --
--- * I know that there are obvious reader below.
+-- * I know that there are an obvious reader monad below.
 -----------------------------------------------------------------------------
 
 module Interp where
