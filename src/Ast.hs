@@ -105,7 +105,10 @@ instance Pretty LExpr where
     case constrToNum c of
       Just n -> show n
       Nothing -> "S(" ++ (intercalate ", " $ map pretty lExprs) ++ ")"
-  pretty (Constr "Cons" [lExpr1,lExpr2]) = (pretty lExpr1) ++ " : " ++ (pretty lExpr2)
+  pretty (Constr "Cons" [lExpr1,lExpr2]) = 
+    case getList lExpr2 of
+      Just(val) -> "[" ++ (intercalate ", " $ map pretty (lExpr1 : val)) ++ "]"
+      Nothing -> "(" ++ pretty lExpr1 ++ " : " ++ pretty lExpr2 ++ ")"
   pretty (Constr "Nil" []) = "[ ]"
   pretty (Constr "Tuple" lExprs) = "{" ++ (intercalate ", " $ map pretty lExprs) ++ "}"
   pretty (Constr eIdent []) = eIdent
@@ -120,6 +123,13 @@ instance Pretty Expr where
         "rlet " ++ pretty lExpr_in ++ " = " ++ ident ++ " " ++ pretty lExpr_out ++ "\n in " ++ pretty expr ++ "\n"
   pretty (CaseOf lExpr matches) =
         "case " ++ pretty lExpr ++ " of " ++ "{\n" ++ intercalate "\n" (map (\(le,e) -> pretty le ++ " -> " ++ pretty e) matches) ++ "}"
+
+getList :: LExpr -> Maybe [LExpr]
+getList (Constr "Nil" []) = Just([])
+getList (Constr "Cons" [lExpr1,lExpr2]) = 
+    do v <- getList lExpr2
+       return $ lExpr1 : v
+getList _ = Nothing
 
 instance Pretty Value where
   pretty value = pretty $ valueToLExpr value
