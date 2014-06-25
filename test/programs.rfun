@@ -122,6 +122,9 @@ scanr {i, (x:xs)} =^=
 	      {x'', l} = scanr {x', xs}
 	  in  {i', (x'' : l)}
 
+scanr1 [] =^= []
+scanr1 (x:xs) =^= scanr {x,xs}
+
 -- scanl specialized to plus
 scanl {i, []}      =^= {i, []}
 scanl {i, [x]}     =^= 
@@ -132,6 +135,29 @@ scanl {i, (x : z : xs)} =^=
 		    {y', x'} = plus {y, x}
 		in  {i', (x' : y' : ys)}
 
+-- foldr specialised to plus
+--   returns the list untouched
+foldr {x,[]} =^= {x,[]}
+foldr {x,(y:ys)} =^= 
+	let {y',x'} = plus {y,x}
+	    {x'',ys'} = foldr {x',ys}
+	in  {x'', (y':ys')}
+
+foldr1 (x:xs) =^=
+	let {x',x''} = dupEq {x} 
+	    {y, xs'} = foldr {x',xs}
+	in  {y,(x'':xs')}
+
+
+-- foldl specialised to plus
+--   returns the list untouched
+foldl {x,[]} =^= {x,[]}
+foldl {x,(y:ys)} =^= 
+	let {x',ys'} = foldr {x,ys}
+      {y',x''} = plus {y,x'}
+	in  {x'', (y':ys')}
+
+
 -- map specialized to inc
 map      []  =^= []
 map (x : xs) =^= 
@@ -139,12 +165,13 @@ map (x : xs) =^=
 		    xs' = map xs
 		in  (x' : xs')
 
+
 reverse xs =^= 
 		let  {xs_s, xs'}     = length xs
 		     {[], ys, xs_s'} = move {xs', [], xs_s} 
 		rlet {xs_s', ys}     = length ys'
 		in   ys'
-	
+
 -- This function in only partial
 --  helper to reverse
 move {      x , l,   Z } =^= {x, l, Z}
@@ -162,10 +189,11 @@ splitAt {S(s), (l : ls)} =^=
 hdtl (x:xs) =^= {x,xs}
 
 -- Finds the last elements and the rest of the list
-last xs =^= 
-		let (x : xs') = reverse xs
-		    xs''      = reverse xs'
-		in  {x, xs''}
+last ([x])  =^= {[],x}
+last (x:xs) =^= 
+	let {xs',l} = last xs
+	in  {(x:xs'),l} 
+
 
 -- If it is called reverse and the N is not equal
 --   to the length of the list, I will fail.
@@ -185,6 +213,90 @@ append {(x : xs), l} =^=
 unAppend x =^=
 		rlet x = append x'
 		in x'
+
+-- Identical to Haskell replicate function
+replicate {S(Z),x} =^= [x]
+replicate {S(n),x} =^=
+	let {x',x''} = dupEq {x}
+	    xs = replicate {n,x'}
+	in  (x'':xs)
+
+-- Similar to Haskell intersperse function
+intersperse {x,[]}       =^= {x,[]}
+intersperse {x,[y]}      =^= {x,[y]}
+intersperse {x,(l:list)} =^= 
+	let {x',list'} = intersperse {x,list}
+	    {x'',xn} = dupEq {x'}
+	in  {x'',(l:xn:list')}
+
+-- Identical to Haskell transpose function
+transpose []     =^= []
+transpose (x:xs) =^=
+	let xs' = transpose xs
+	in  addToLists {x,xs'}
+
+-- Helper function for transpose
+--   Adds empty lists this second input is an empty list, e.g. addToLists {[1,2],[]} = [[1],[2]]
+addToLists {[],[]} =^= []
+addToLists {(x:xs),[]} =^=
+	let ys' = addToLists {xs, []}
+	in  (([x]):ys')
+addToLists {(x:xs),(y:ys)} =^=
+	let ys' = addToLists {xs, ys}
+	in  ((x:y):ys')
+
+-- Identical to Haskell subsequences function
+subsequences [] =^= [[]]
+subsequences (x:xs) =^=
+	let xs' = subsequences xs
+	in  duplicateAdd {x,xs'}
+
+-- Helper function for subsequences
+duplicateAdd {x,[y]} =^= 
+	let {y',y''} = dupEq {y}
+	in  [y',(x:y'')]
+duplicateAdd {x,(y:ys)} =^= 
+	let {x',x''} = dupEq {x}
+			ys' = duplicateAdd{x',ys}
+	    {y',y''} = dupEq {y}
+	in  (y':(x'':y''):ys')
+
+
+
+
+
+--permutations [] =^= []
+--permutations [x] =^= [[x]]
+--permutations (x:xs) =^=
+--	let ys = permutations xs
+
+-- 
+
+--interleave {x,ys} =^= 
+--	let (y:ysub) = subLists ys
+--			{x',x''} = dupEq {x}
+--			{ysub,}
+--			consToLists {x',ys'}
+	    
+
+
+subLists [] =^= [[]]
+subLists (x:xs) =^=
+	let {xs',xs''} = dupEq {xs}
+	    ys = subLists xs'
+	in  ((x:xs''):ys)
+
+consToLists {x,ys} =^=
+	let {x',((x'':y):ys')} = consToLists_h {x,ys}
+	    {x} = dupEq {x',x''}
+	in  ((x:y):ys')
+
+consToLists_h {x,[]} =^= {x,[]}
+consToLists_h {x, (y:ys)} =^=
+	let {x',x''} = dupEq {x}
+	    {x''',ys'} = consToLists_h {x',ys}
+	in  {x''',((x'':y):ys')}
+
 
 ---------------------------------------------------------------
 ---- APPLICATIONS

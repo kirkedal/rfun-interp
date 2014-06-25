@@ -48,6 +48,7 @@ lookup {S(a), ({S(b),v}:sub)} =^=
 		[] -> {{S(a'),r}, []}
 		({b',v}:sub') -> {{S(a'),r}, ({S(b'),v}:sub')}
 
+
 -- insert :: {{N,a},[{N,a}]} -> {N,[{N,a}]}
 insert v =^= rlet v = lookup v' in v'
 
@@ -331,6 +332,11 @@ fromValue {x,y} =^=
 fromValue {x} =^= 
 	let x' = fromValue x
 	in  ConstrV(Tuple, [x'])
+fromValue (x:xs) =^= 
+	let x'  = fromValue x
+	    xs' = fromValue xs
+	in  ConstrV(Cons, [x',xs'])
+fromValue [] =^= ConstrV(Nil, [])
 
 
 
