@@ -77,6 +77,10 @@ divide xy =^=
 		rlet xy = mult xy'
 		in   xy'
 
+
+-- This square root function is very simple and basically iterates 
+-- over all possible integers. Function will fail if the input 
+-- is not the square of an integer.
 sqrt s =^=
 	let {i,sq} = sqrt_h {1,s}
       {sq'} = dupEq {S(i),sq}
@@ -87,9 +91,10 @@ sqrt_h {n,s} =^=
 	    {n''',m} = mult {n'',n'} in
 	case |{m,s}| of
 		{m',s'} ->
-			let {n4,n5} = divide {n''',m'}
+			let {m'',s''} = less {m',s'}
+			    {n4,n5} = divide {n''',m''}
 			    {n6} = dupEq {n4,n5}
-			    {i,sq} = sqrt_h {S(n6),s'}
+			    {i,sq} = sqrt_h {S(n6),s''}
 			in  {S(i),sq}
 		{s'} -> 
 			let {n4,n51} = divide {n''',s'}
