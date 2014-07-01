@@ -82,24 +82,22 @@ divide xy =^=
 -- over all possible integers. Function will fail if the input 
 -- is not the square of an integer.
 sqrt s =^=
-	let {i,sq} = sqrt_h {1,s}
+	let {i,sq} = sqrt_h {1,1,s}
       {sq'} = dupEq {S(i),sq}
   in  sq'
 
-sqrt_h {n,s} =^=
-	let {n',n''} = dupEq {n}
-	    {n''',m} = mult {n'',n'} in
+sqrt_h {n,m,s} =^=
 	case |{m,s}| of
 		{m',s'} ->
 			let {m'',s''} = less {m',s'}
-			    {n4,n5} = divide {n''',m''}
-			    {n6} = dupEq {n4,n5}
-			    {i,sq} = sqrt_h {S(n6),s''}
+			    {n',m'''} = plus {n,m''}
+			    {n'',m4} = plus {S(n'),m'''}
+			    {i,sq} = sqrt_h {n'',m4,s''}
 			in  {S(i),sq}
 		{s'} -> 
-			let {n4,n51} = divide {n''',s'}
-			    {n6} = dupEq {n4,n51} 
-			in {Z,n6}
+			let {n',n''} = divide {n,s'}
+			    {n'''} = dupEq {n',n''} 
+			in {Z,n'''}
 
 square x =^= rlet x = sqrt x' in x'
 
