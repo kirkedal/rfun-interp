@@ -102,15 +102,15 @@ add v =^= rlet v = remove v' in v'
 findvars {Var(x),list} =^= 
 	let {x',list'} = add {x,list}
 	in  {Var(x'), list'}
+findvars  {DupEq(l), list} =^=
+	let {l',list'} = findvars {l,list}
+	in  {DupEq(l'), list'}
 -- The following to would be better implemented with a map function
 findvars {Constr(c,[]),list} =^= {Constr(c,[]),list}
 findvars {Constr(c,(v:vars)),list} =^= 
 	let {v', list'} = findvars {v,list}
 	    {Constr(c',vars'), list''} = findvars {Constr(c,vars), list'}
   in  {Constr(c',(v':vars')), list''}
-findvars  {DupEq(l), list} =^=
-	let {l',list'} = findvars {l,list}
-	in  {DupEq(l'), list'}
 
 -------------------------------------------------------------------------------
 -- ** The interpreter
@@ -124,7 +124,6 @@ evalDupEq ConstrV(Tuple,[x,y]) =^=
 evalDupEq ConstrV(Tuple,[x]) =^= 
 	let {x', x''} = dupEq {x}
 	in  ConstrV(Tuple,[x',x''])
-
 
 -- |evalRMatch have to be lifted to the "Either monad", as 
 -- | it is used to find minimum match. LExpr are always unchanged.
@@ -206,7 +205,8 @@ evalExp {CaseOf(lExpr, cases), funEnv, sub} =^=
 	rlet {i,{cLExpr',cExpr'}, cases', value} = checkLeaves {cases'', value'}
 	in   {CaseOf(lExpr'', cases''), funEnv'', value'}
 
-
+-- | Finds the case (and index) that matches a value and evaluates this to a substitution
+-- checkCases :: {[{LExpr, Expr}], Value} -> {Int, {LExpr, Expr}, [{LExpr, Expr}], Subst}
 checkCases {({lExpr,expr}:cases), value} =^=
 	case evalRMatch {lExpr, value} of
 		Right(lExpr', sub) -> 
@@ -216,6 +216,8 @@ checkCases {({lExpr,expr}:cases), value} =^=
 			let {n, le, cases', sub} = checkCases{cases, value'}
 			in {S(n), le, ({lExpr',expr}:cases'), sub}
 
+-- | Similar to checkCases, but for leaves of a case instead of case-matches.
+-- checkLeaces :: {[{LExpr, Expr}], Value} -> {Int, {LExpr, Expr}, [{LExpr, Expr}], Value}
 checkLeaves{({lExpr,expr}:cases), value} =^= 
 	case checkLeavesOf {expr, value} of
 		{Right(expr'), value'} ->
@@ -225,6 +227,8 @@ checkLeaves{({lExpr,expr}:cases), value} =^=
 			let {n, le, cases', value''} = checkLeaves {cases, value'}
 			in  {S(n), le, ({lExpr,expr'}:cases'), value''}
 
+-- | Checks if any leaves of an expression matches a given value.
+-- checkLeacesOf :: {Expr, Value} -> {Either(Expr, Expr), Value}
 checkLeavesOf {LeftE(lExpr), value} =^= 
 	case evalRMatch {lExpr, value} of
 		Right(lExpr', sub) -> 
@@ -252,7 +256,10 @@ checkLeavesOf {CaseOf(lExpr, ({clExpr,cexpr}:cases)), value} =^=
 						 {r1', value'''}  = checkLeavesOf {cexpr', value''''}
 				in {Right(CaseOf(lExpr', ({clExpr,cexpr'}:cases'))), value''''}
 
-
+-- | The main evaluation function.
+-- | Evaluates a given function name in a function environment with a given value
+-- | to some output value. function name and environment are unchanged.
+-- eval :: {Ident, FunEnv, Value} -> {FunEnv, Ident, Value}
 eval {ident, funEnv, value_i} =^=
 	let  {ident', {funL, funE}, funEnv'} = lookupFun {ident, funEnv}
        Right(funL', sub_f) = evalRMatch {funL, value_i}
