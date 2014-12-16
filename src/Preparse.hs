@@ -64,7 +64,7 @@ desugarArgPatMatch = map desugarArgPatMatchSingle
 	where
 		desugarArgPatMatchSingle (_  , []) = error "Function list cannot be empty"
 		desugarArgPatMatchSingle (idt, [func]) = (idt, func)
-		desugarArgPatMatchSingle (idt, funcs) = (idt, Func idt (Var "x") (CaseOf (Var "x") cases))
+		desugarArgPatMatchSingle (idt, funcs) = (idt, Func idt (Var "_ctmp") (CaseOf (Var "_ctmp") cases))
 			where
 				cases = map (\x -> (param x, body x)) funcs
 

@@ -24,24 +24,44 @@ module Interp where
 import Ast
 import qualified Data.Map as M
 import Control.Monad
+import Control.Monad.Writer
+import Control.Monad.Except
+import Debug.Trace (trace)
+import Data.List (intercalate)
 
 -------------------------------------------------------------------------------
 -- * Interpreter main
 -------------------------------------------------------------------------------
 
+-- |Evaluating with return either a result of an ErrorRFun
+--type Eval a = Either Error a
+
+type EvalTrace = [String]
+
+-- |An error is a String
+type ErrorRFun = String
+--type ErrorRFun = (ErrorRFunText, EvalTrace)
+
+newtype Eval a = E { runE :: WriterT EvalTrace (Either ErrorRFun) a }
+--newtype Eval a = E { runE :: Either ErrorRFun (Writer EvalTrace) a }
+    deriving (Monad, MonadWriter EvalTrace, MonadError ErrorRFun)
+
+runEval :: Eval a ->  Either ErrorRFun (a, EvalTrace)
+runEval eval = runWriterT (runE eval)
+
 -- |Making an Maybe an Eval
-evalMaybe :: Error -> Maybe a -> Eval a
+evalMaybe :: ErrorRFun -> Maybe a -> Eval a
 evalMaybe e Nothing = failEval e
 evalMaybe _ (Just a) = return a
 
 -- |Simple fail
-failEval :: a -> Either a b
-failEval = Left
+failEval :: ErrorRFun -> Eval a
+failEval e = throwError e
 
 -- |Interpreting an rFun program
-runProg :: Ident -> Value -> FuncEnv -> Eval Value
+runProg :: Ident -> Value -> FuncEnv -> Either ErrorRFun (Value, EvalTrace)
 runProg ident value funcEnv = 
-	evalFunV funcEnv idSub ident (valueToLExpr value)
+	runEval $ evalFunV funcEnv idSub ident (valueToLExpr value)
 
 -------------------------------------------------------------------------------
 -- ** Substitutions and functions on these
@@ -132,6 +152,7 @@ evalDupEq _ = failEval "Value is not a unary or binary tuple"
 -- |R-Match (Fig. 2, p. 18) that returns a substitution.
 -- Returns a substitution
 evalRMatchS :: Value -> LExpr -> Eval Substitution
+--evalRMatchS value lExpr | trace ("evalRMatchV " ++ pretty lExpr) False = undefined
 -- Single variable resulting in a signleton substitusion
 evalRMatchS value (Var ident) = return $ newSub ident value
 -- Constructor or a special constructor
@@ -146,6 +167,7 @@ evalRMatchS value (DupEq lExpr) = do
 
 -- |R-Match (Fig. 2, p. 18) that returns a value
 evalRMatchV :: Substitution -> LExpr -> Eval Value
+--evalRMatchV sub lExpr | trace ("evalRMatchV " ++ pretty lExpr) False = undefined
 -- Single variable resulting in a single value
 evalRMatchV sub (Var ident) = lookupValue ident sub
 -- Constructor or a special constructor
@@ -164,6 +186,8 @@ evalRMatchV sub (DupEq lExpr) = evalDupEq =<< evalRMatchV sub lExpr
 -- |Function calls: Fig 3, p. 19, FunExp
 -- Function calls in a sub part of lets
 evalFunS :: FuncEnv -> Ident -> LExpr -> Value -> Eval Substitution
+--evalFunS _ ident lExpr value | trace ("--------------\nevalFunS: " ++ ident ++ "\n Value = " ++ pretty value ++ "\n LExpr: " ++ pretty lExpr) False = undefined
+--evalFunS _ ident lExpr value | trace ("evalFunS: " ++ ident) False = undefined
 evalFunS funcEnv ident lExpr value =
 	do
 		(lExprFun, exprFun) <- lookupFunction funcEnv ident
@@ -173,6 +197,8 @@ evalFunS funcEnv ident lExpr value =
 
 -- |Function calls that returns a value
 evalFunV :: FuncEnv -> Substitution -> Ident -> LExpr -> Eval Value
+--evalFunV _ _ ident lExpr | trace ("evalFunV: " ++ ident ++ " (...) = ") False = undefined
+--evalFunV _ sub ident lExpr | trace ("--------------\nevalFunV: " ++ ident ++ "\n Subst: [" ++ (intercalate "," $ map (\(x,y) -> "("++show x++","++pretty y++")") $ M.toList sub ) ++ "]\n LExpr: " ++ pretty lExpr) False = undefined
 evalFunV funcEnv sub ident lExpr =
 	do
 		(lExprFun, exprFun) <- lookupFunction funcEnv ident
@@ -215,7 +241,7 @@ evalExpS funcEnv e@(CaseOf lExpr matches) value =
 		-- A consistency check with val_p against previous l in cases
 		let takenMatches = take j matches
 		    takenLExpr = map fst takenMatches
-		evalMaybe ("Return value match in preceding leaves:\n\t" ++ pretty val_p ++ "\nin expression:\n\t" ++ pretty e) $ 
+		evalMaybe ("Return value match in preceding leaves: (" ++ show j ++ ")\n\t" ++ pretty val_p ++ "\nin expression:\n\t" ++ pretty e) $ 
 						checkLExprs evalRMatchS val_p sub_lt takenLExpr
 	where 
 		allLeaves = zip [0..] $ map (leaves.snd) matches
@@ -262,13 +288,13 @@ evalExpV funcEnv sub e@(CaseOf lExpr matches) =
 checkLeaves :: (Value -> LExpr -> Eval c) -> Value -> [LExpr] -> Maybe Value
 checkLeaves _ val []          = return (val)
 checkLeaves func val (l:list) =
-		either (\_ -> checkLeaves func val list) (\_ -> Nothing) $ func val l
+		either (\_ -> checkLeaves func val list) (\_ -> Nothing) (runEval $ func val l)
 
 -- |This function is helper for the caseOf
 checkLExprs :: (Value -> LExpr -> Eval c) -> Value -> Substitution -> [LExpr] -> Maybe Substitution
 checkLExprs _    _   sub []          = return (sub)
 checkLExprs func val sub (l:list) =
-		either (\_ -> checkLExprs func val sub list) (\_ -> Nothing) $ func val l
+		either (\_ -> checkLExprs func val sub list) (\_ -> Nothing) (runEval $ func val l)
 
 -- | Finds the minimum index of a case-leave to which a eval-function matches.
 -- The list is indexed from 0; different from the paper!!!!
@@ -278,7 +304,8 @@ findSubIndex func list =
 	where
 		findSubIndex_h _ [] = Nothing
 		findSubIndex_h f (l:ls) = 
-			either (\_ -> (findSubIndex_h f ls)) (\r -> return (fst l,r)) (f $ snd l)
+--			(return $ (fst l,(f $ snd l))) `catchError` (\_ -> (findSubIndex_h f ls))  
+			either (\_ -> (findSubIndex_h f ls)) (\r -> return (fst l, fst r)) (runEval $ f $ snd l)
 
 -- |As defined in Footnote 1, p 19.
 leaves :: Expr -> [LExpr]

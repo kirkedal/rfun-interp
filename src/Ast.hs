@@ -41,6 +41,7 @@ module Ast where
 import qualified Data.Map as M
 import Data.List (intercalate)
 
+
 -- |A program is a sequence of functions
 type Program  = [Func]
 -- |A function is an identifier is some left-expression as parameter and
@@ -79,10 +80,6 @@ constrToNum (Constr "Z" []) = Just 0
 constrToNum (Constr "S" [lExpr]) = do n <- constrToNum lExpr ; Just $ n + 1
 constrToNum _c = Nothing
 
--- |An error is a String
-type Error = String
--- |Evaluating with return either a result of an Error
-type Eval a = Either Error a
 
 -- |Function environments (to be used later) is a mapping from Identifiers to a Function
 type FuncEnv = M.Map Ident Func
@@ -133,3 +130,4 @@ getList _ = Nothing
 
 instance Pretty Value where
   pretty value = pretty $ valueToLExpr value
+

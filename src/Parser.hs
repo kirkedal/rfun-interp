@@ -17,13 +17,14 @@ module Parser (parseString, parseFromFile, parseValue, ParseError) where
 
 
 import Text.ParserCombinators.Parsec hiding (parse,parseFromFile)
+-- import Text.ParserCombinators.Parsec.IndentParser hiding (parse,parseFromFile)
 import qualified Text.Parsec.Token as P
 --import Text.Parsec.Language
 --import qualified Text.Parsec.Char as PC
 import Text.Parsec.Prim (runP)
 --import qualified Text.ParserCombinators.Parsec.Expr as E
-import Data.Functor.Identity
-
+import Control.Monad.Identity
+}
 import Ast
 
 type ParserState = [String]
@@ -106,6 +107,8 @@ parens = P.parens lexer
 brackets :: CharParser st a -> CharParser st a
 brackets = P.squares lexer
 
+-- |Parser @(brackets p)@ parses p and trailing whitespaces enclosed in square brackets ('{' and '}'),
+--  returning the value of p.
 braces :: CharParser st a -> CharParser st a
 braces = P.braces lexer
 
@@ -171,7 +174,9 @@ expr = try letin <|> try rletin <|> try caseofF <|> try caseof <|> try apply <|>
                     le <- lexpr
                     notFollowedBy $ lexpr >> symbol "=^="
                     return $ LetIn (Var "_tmp") fun le (LeftE (Var "_tmp"))
-        cases  = do le <- lexpr
+--        cases  =    try $ braces cases_ <|> cases_
+        cases  =     cases_
+        cases_ = do le <- lexpr
                     symbol "->"
                     e <- expr
                     return (le,e)
