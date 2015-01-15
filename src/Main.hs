@@ -39,8 +39,8 @@ main =
 		case args of
 			[program, value, filename] -> 
 				do
---					res <- timeout (5 * 1000000) $ parseAndRun program value filename -- 5 second
-					res <- parseAndRun program value filename >>= \x -> return $ Just x
+					res <- timeout (5 * 1000000) $ parseAndRun program value filename -- 5 second
+					-- res <- parseAndRun program value filename >>= \x -> return $ Just x
 
 					case res of
 						Nothing -> exitWith $ ExitFailure 124
@@ -64,7 +64,7 @@ parseAndPre filename =
 	do
 		prg    <- fromParsecError =<< parseInput filename
 		let funEnv = runPreparse prg
-		-- putStrLn $ prettyFuncEnv funEnv
+		putStrLn $ prettyFuncEnv funEnv
 		putStrLn "Parsing successful."
 
 parsePreAndRFun :: String -> Ident -> IO ()

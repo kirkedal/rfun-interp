@@ -26,8 +26,8 @@ import qualified Data.Map as M
 import Control.Monad
 import Control.Monad.Writer
 import Control.Monad.Except
-import Debug.Trace (trace)
-import Data.List (intercalate)
+-- import Debug.Trace (trace)
+-- import Data.List (intercalate)
 
 -------------------------------------------------------------------------------
 -- * Interpreter main

@@ -24,7 +24,7 @@ import qualified Text.Parsec.Token as P
 import Text.Parsec.Prim (runP)
 --import qualified Text.ParserCombinators.Parsec.Expr as E
 import Control.Monad.Identity
-}
+
 import Ast
 
 type ParserState = [String]
