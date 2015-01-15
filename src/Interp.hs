@@ -61,7 +61,7 @@ failEval e = throwError e
 -- |Interpreting an rFun program
 runProg :: Ident -> Value -> FuncEnv -> Either ErrorRFun (Value, EvalTrace)
 runProg ident value funcEnv = 
-	runEval $ evalFunV funcEnv idSub ident (valueToLExpr value)
+	runEval $ evalFunV funcEnv idSub idSub ident (valueToLExpr value)
 
 -------------------------------------------------------------------------------
 -- ** Substitutions and functions on these
@@ -76,6 +76,10 @@ idSub = M.empty
 -- |Make a substitution of one variable
 newSub :: Ident -> Value -> Substitution
 newSub ident value = M.singleton ident value
+
+-- |Lookup a value in a substitution without any limitations -- used in function lookup
+peakValue :: Ident -> Substitution -> Maybe Value
+peakValue ident sub = M.lookup ident sub
 
 -- |Lookup a value in a substitution
 lookupValue :: Ident -> Substitution -> Eval Value
@@ -185,26 +189,38 @@ evalRMatchV sub (DupEq lExpr) = evalDupEq =<< evalRMatchV sub lExpr
 
 -- |Function calls: Fig 3, p. 19, FunExp
 -- Function calls in a sub part of lets
-evalFunS :: FuncEnv -> Ident -> LExpr -> Value -> Eval Substitution
+evalFunS :: FuncEnv -> Substitution -> Ident -> LExpr -> Value -> Eval Substitution
 --evalFunS _ ident lExpr value | trace ("--------------\nevalFunS: " ++ ident ++ "\n Value = " ++ pretty value ++ "\n LExpr: " ++ pretty lExpr) False = undefined
 --evalFunS _ ident lExpr value | trace ("evalFunS: " ++ ident) False = undefined
-evalFunS funcEnv ident lExpr value =
+evalFunS funcEnv peakSub ident lExpr value =
 	do
-		(lExprFun, exprFun) <- lookupFunction funcEnv ident
+		(lExprFun, exprFun) <- lookupFunction funcEnv =<< lident
 		sub_f <- evalExpS funcEnv exprFun value
 		val_p <-  evalRMatchV sub_f lExprFun
 		evalExpS funcEnv (LeftE lExpr) val_p
+	where
+		lident = 
+			case peakValue ident peakSub of
+				Nothing  -> return ident
+				(Just (ConstrV i [])) -> return i
+				_  -> failEval "Values is not a function name"
 
 -- |Function calls that returns a value
-evalFunV :: FuncEnv -> Substitution -> Ident -> LExpr -> Eval Value
+evalFunV :: FuncEnv -> Substitution -> Substitution -> Ident -> LExpr -> Eval Value
 --evalFunV _ _ ident lExpr | trace ("evalFunV: " ++ ident ++ " (...) = ") False = undefined
 --evalFunV _ sub ident lExpr | trace ("--------------\nevalFunV: " ++ ident ++ "\n Subst: [" ++ (intercalate "," $ map (\(x,y) -> "("++show x++","++pretty y++")") $ M.toList sub ) ++ "]\n LExpr: " ++ pretty lExpr) False = undefined
-evalFunV funcEnv sub ident lExpr =
+evalFunV funcEnv peakSub sub ident lExpr =
 	do
-		(lExprFun, exprFun) <- lookupFunction funcEnv ident
+		(lExprFun, exprFun) <- lookupFunction funcEnv =<< lident
 		val_p <- evalExpV funcEnv sub (LeftE lExpr)
 		sub_f <- evalRMatchS val_p lExprFun
 		evalExpV funcEnv sub_f exprFun
+	where
+		lident = 
+			case peakValue ident peakSub of
+				Nothing  -> return ident
+				(Just (ConstrV i [])) -> return i
+				_  -> failEval "Values is not a function name"
 
 -- |Expressions: Fig 3, p. 19 (not FunExp) that returns substitution
 evalExpS :: FuncEnv -> Expr -> Value -> Eval Substitution
@@ -214,7 +230,7 @@ evalExpS funcEnv (LetIn lExpr_out ident lExpr_in expr) value =
 		sub_end <- evalExpS funcEnv expr value
 		(sub_out, sub_e) <- divide vars sub_end 
 		val_out <- evalRMatchV sub_out lExpr_out
-		sub_in <- evalFunS funcEnv ident lExpr_in val_out
+		sub_in <- evalFunS funcEnv sub_e ident lExpr_in val_out
 		disUnion sub_in sub_e
 	where
 		vars = findVars lExpr_out
@@ -222,7 +238,7 @@ evalExpS funcEnv (RLetIn lExpr_in ident lExpr_out expr) value =
 	do
 		sub_end <- evalExpS funcEnv expr value
 		(sub_out, sub_e) <- divide vars sub_end
-		val_in <- evalFunV funcEnv sub_out ident lExpr_out
+		val_in <- evalFunV funcEnv sub_e sub_out ident lExpr_out
 		sub_in <- evalRMatchS val_in lExpr_in
 		disUnion sub_in sub_e
 	where
@@ -252,7 +268,7 @@ evalExpV _ sub (LeftE lExpr) = evalRMatchV sub lExpr
 evalExpV funcEnv sub (LetIn lExpr_out ident lExpr_in expr) =
 	do
 		(sub_in, sub_e) <- divide vars sub
-		val_out <- evalFunV funcEnv sub_in ident lExpr_in
+		val_out <- evalFunV funcEnv sub_e sub_in ident lExpr_in
 		sub_out <- evalRMatchS val_out lExpr_out
 		sub_end <- disUnion sub_out sub_e
 		evalExpV funcEnv sub_end expr
@@ -262,7 +278,7 @@ evalExpV funcEnv sub (RLetIn lExpr_in ident lExpr_out expr) =
 	do
 		(sub_in, sub_e) <- divide vars sub
 		val_in <- evalRMatchV sub_in lExpr_in
-		sub_out <- evalFunS funcEnv ident lExpr_out val_in
+		sub_out <- evalFunS funcEnv sub_e ident lExpr_out val_in
 		sub_end <- disUnion sub_out sub_e
 		evalExpV funcEnv sub_end expr
 	where 

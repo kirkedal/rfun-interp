@@ -72,7 +72,7 @@ parsePreAndRFun filename program =
 	do
 		prg    <- fromParsecError =<< parseInput filename
 		let funEnv = runPreparse prg
---		putStrLn $ prettyFuncEnv funEnv
+		putStrLn $ prettyFuncEnv funEnv
 		putStrLn $ parseRFun program $ map snd $ M.toList funEnv
 
 parseInput :: String -> IO (Either ParseError Program)
