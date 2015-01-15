@@ -192,11 +192,11 @@ foldl1 (y:ys) =^=
 
 
 -- map specialized to inc
-map      []  =^= []
-map (x : xs) =^= 
-		let x' = inc x
-		    xs' = map xs
-		in  (x' : xs')
+map {fun,     []  } =^= {fun, []}
+map {fun, (x : xs)} =^= 
+		let x' = fun x
+		    {fun', xs'} = map {fun, xs}
+		in  {fun', (x' : xs')}
 
 
 -- Reverse of a list
