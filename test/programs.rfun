@@ -148,7 +148,9 @@ scanr {fun, i, (x:xs)} =^=
 	  in  {fun', i', (x'' : l)}
 
 scanr1 {fun, []} =^= {fun, []}
-scanr1 {fun, (x:xs)} =^= scanr {fun,x,xs}
+scanr1 {fun, (x:xs)} =^= 
+	let {fun', x', xs'} = scanr {fun,x,xs}
+	in  {fun', (x':xs')}
 
 -- scanl applying function given in fun
 scanl {fun, i, []}      =^= {fun, i, []}
@@ -159,6 +161,11 @@ scanl {fun, i, (x : z : xs)} =^=
 		let {fun', i', (y:ys)} = scanl {fun, i, (z : xs)}
 		    {y', x'} = fun' {y, x}
 		in  {fun', i', (x' : y' : ys)}
+
+scanl1 {fun, []} =^= {fun, []}
+scanl1 {fun, (x:xs)} =^= 
+	let ys = reverse (x:xs)
+	in  scanr1 {fun,ys}
 
 -- foldr applying function given in fun
 --   this is actually more similar to mapAccumR
@@ -197,7 +204,6 @@ map {fun, (x : xs)} =^=
 		let x' = fun x
 		    {fun', xs'} = map {fun, xs}
 		in  {fun', (x' : xs')}
-
 
 -- Reverse of a list
 reverse xs =^= 
