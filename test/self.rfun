@@ -17,10 +17,10 @@ zip {(x:xs),(y:ys)} =^=
 unzip v =^= rlet v = zip v' in v'
 
 -- |Addition
-plus {x,  Z } =^= |{x}|
-plus {x,S(u)} =^= 
-    let {xp,up} = plus {x,u} 
-    in  {xp, S(up)}
+plus {Z,y} =^= {Z,y}
+plus {S(x), y} =^=
+	let {x',y'} = plus {x,y}
+	in  {S(x'), S(y')} 
 
 -- |scanr specialized to plus
 scanrPlus {i, []}     =^= {i, []}
@@ -37,6 +37,7 @@ scanrPlus {i, (x:xs)} =^=
 -- |absolute value) is saved.
 --| E.g., in [{1,A}, {1,B}] we have that lookup {1, ..} is A and lookup {2,..} is B
 
+-- Perhaps call them get/put
 -- lookup :: {N,[{N,a}]} -> {{N,a},[{N,a}]}
 lookup {Z, ({Z,v}:sub)} =^= {{Z,v},sub}
 lookup {S(a), ({Z,v}:sub)} =^= 
@@ -47,7 +48,6 @@ lookup {S(a), ({S(b),v}:sub)} =^=
 	case l of
 		[] -> {{S(a'),r}, []}
 		({b',v}:sub') -> {{S(a'),r}, ({S(b'),v}:sub')}
-
 
 -- insert :: {{N,a},[{N,a}]} -> {N,[{N,a}]}
 insert v =^= rlet v = lookup v' in v'
@@ -72,7 +72,7 @@ disUnionh {(x:xs), sub} =^=
 -- divide :: {[N],[{N,a}]} -> {[{N,a}],[{N,a}]}
 divide v =^= rlet v = disUnion v' in v'
 
--- |Similar to lookup, but copies and inserts the fount value again
+-- |Similar to lookup, but copies and inserts the found value again
 -- loopupFun :: {N,[{N,a}]} -> {{N,a},[{N,a}]}
 lookupFun {ident, funEnv} =^=
 	let {{ident', v}, funEnv'} = lookup {ident, funEnv}
@@ -186,14 +186,17 @@ evalExp {LetIn(lout, ident, lin, expr), funEnv, sub} =^=
 	let  {expr', funEnv'', v} = evalExp {expr, funEnv', sub_ef}
 	in   {LetIn(lout'', ident', lin'', expr'), funEnv'', v}
 evalExp {RLetIn(lin, ident, lout, expr), funEnv, sub} =^=
-	let  {lin', v_lin} = findvars {lin,[]}
-	     {sub_in,sub_e} = divide {v_lin, sub}
-	rlet Right(lin', sub_in) = evalRMatch {lin'', vin}
-	     {funEnv, ident, lout, vin} = evalFun {funEnv', ident', lout', sub_out}
-	let  {v_lout, sub_ef} = disUnion {sub_out, sub_e}
-	rlet {lout', v_lout} = findvars {lout'',[]}
-	let  {expr', funEnv'', v} = evalExp {expr, funEnv', sub_ef}
-	in   {RLetIn(lin'', ident', lout'', expr'), funEnv'', v}
+	rlet {LetIn(lin, ident, lout, expr), funEnv, sub} = evalExp {LetIn(lin', ident', lout', expr'), funEnv', value}
+	-- Implementation of evalExp for the RLet-In case not using the reverse call to Let-In
+	--let  {lin', v_lin} = findvars {lin,[]}
+	--     {sub_in,sub_e} = divide {v_lin, sub}
+	--rlet Right(lin', sub_in) = evalRMatch {lin'', vin}
+	--     {funEnv, ident, lout, vin} = evalFun {funEnv', ident', lout', sub_out}
+	--let  {v_lout, sub_ef} = disUnion {sub_out, sub_e}
+	--rlet {lout', v_lout} = findvars {lout'',[]}
+	--let  {expr', funEnv'', v} = evalExp {expr, funEnv', sub_ef}
+	--in   {RLetIn(lin'', ident', lout'', expr'), funEnv'', v}
+	in   {RLetIn(lin', ident', lout', expr'), funEnv', value}
 evalExp {CaseOf(lExpr, cases), funEnv, sub} =^=
 	let  {lExpr', v_lExpr} = findvars {lExpr,[]}
 	     {sub_l, sub_t} = divide {v_lExpr, sub}
@@ -267,65 +270,21 @@ eval {ident, funEnv, value_i} =^=
 	rlet {ident', {funL', funE'}, funEnv''} = lookupFun {ident'', funEnv'''}
 	in   {funEnv''', ident'', value_o}
 
-
-
-
--------------------------------------------------------------------------------
--- ** Testing
--------------------------------------------------------------------------------
-
---1 as ConstrV(S, [ConstrV(Z,[])])
 testInc input =^=
-	let  {ident, funEnv} = inc 10
+	let  {ident, funEnv} = inc 0
 			 value = fromValue input
 			 {funEnv', ident', value'} = eval {ident, funEnv, value}
-	rlet {ident', funEnv'} = inc 10
+	rlet {ident', funEnv'} = inc 0
 	     value' = fromValue output
 	in output
 
---inc Z =^= S(Z)
---inc S(np) =^= 
---		let npp = inc np 
---		in  S(npp)
-
-inc x =^= {x,[{10,{Var(1), 
+inc x =^= {x,[{0,{Var(1), 
 				CaseOf(Var(1), [
 						{Constr(Z,[]), LeftE(Constr(S, [Constr(Z,[])]))}
-					, {Constr(S,[Var(2)]), LetIn(Var(3), 10, Var(2), LeftE(Constr(S, [Var(3)])))}
+					, {Constr(S,[Var(2)]), LetIn(Var(3), 0, Var(2), LeftE(Constr(S, [Var(3)])))}
 					])}}]}
 
-testPlus input =^=
-	let  {ident, funEnv} = plus 11
-			 value = fromValue input
-			 {funEnv', ident', value'} = eval {ident, funEnv, value}
-	rlet {ident', funEnv'} = plus 11
-	     value' = fromValue output
-	in output
 
-testMinus input =^=
-	let  {ident, funEnv} = plus 12
-			 value = fromValue input
-			 {funEnv', ident', value'} = eval {ident, funEnv, value}
-	rlet {ident', funEnv'} = plus 12
-	     value' = fromValue output
-	in output
-
---plus {x,  Z } =^= |{x}|
---plus {x,S(u)} =^= 
---    let {xp,up} = plus {x,u} 
---    in  {xp, S(up)}
-
-plus x =^= {x,[{11,{ Constr(Tuple,[Var(10),Var(4)]), 
-				CaseOf(Var(4), [
-						{Constr(Z,[]), LeftE(DupEq(Constr(Tuple,[Var(10)])))}
-					, {Constr(S,[Var(12)]), 
---							LeftE(Constr(Tuple,[Var(1),Var(3)]))
-							LetIn(Constr(Tuple,[Var(4), Var(5)]), 11, Constr(Tuple,[Var(10),Var(12)]), 
-								LeftE(Constr(Tuple,[Var(4),Constr(S, [Var(5)])])))
-						}
-				])
-					}},
-					{1, {Var(1), RLetIn(Var(1), 11, Var(2), LeftE(Var(2)))} }]}
 
 
 fromValue Z    =^= ConstrV(Z,[])
@@ -344,9 +303,3 @@ fromValue (x:xs) =^=
 	    xs' = fromValue xs
 	in  ConstrV(Cons, [x',xs'])
 fromValue [] =^= ConstrV(Nil, [])
-
-
-
-
-
-

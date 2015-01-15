@@ -51,6 +51,7 @@ inc S(np) =^=
 		let npp = inc np 
 		in  S(npp)
 
+--plus :: Nat -> Nat <-> Nat
 plus {x,  Z } =^= |{x}|
 plus {x,S(u)} =^= 
     let {xp,up} = plus {x,u} 
@@ -239,8 +240,8 @@ length (x : xs) =^=
 append {[],l}      =^= {[], l}
 append {(x : xs), l} =^=  
 		let {xs', l'} = append {xs, l}
-		in  case |{x}| of
-				{x', x''} -> {(x' : xs'), (x'' : l')} 
+		    {x', x''} = dupEq {x}
+		in  {(x' : xs'), (x'' : l')} 
 
 -- The reverse of the append
 unAppend x =^=
@@ -382,12 +383,84 @@ inits (x:xs) =^=
 pack [] =^= []
 pack (c1 : r) =^=
 	case pack r of
-			[] -> ([{c1, S(Z)}])
+			[] -> [{c1, S(Z)}]
 			({c2, n} : t) ->
 					case |{c1,c2}| of
 							{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
 							{c} -> ({c, S(n)} : t)
 
+
+pack2 {[],p} =^= {[],p}
+pack2 {[h], []} =^= {[],[{h,S(Z)}]}
+
+
+--unpack [] =^= []
+--unpack [{c1, S(Z)}] =^= 
+--unpack ({c1p, S(Z)} : ({c2p, n} : t)) =^= 
+--unpack ({c, S(n)} : t) =^=
+
 unpack l =^= 
 	rlet l = pack l'
 	in l'
+
+
+---------------------------------------------------------------
+---- BIDIRECTIONAL
+---------------------------------------------------------------
+
+evenOdd Z    =^= Even(Z)
+evenOdd S(Z) =^= Odd(S(Z))
+evenOdd S(S(x)) =^= 
+		case evenOdd x of
+		  Even(x') -> Even( S(S(x')) )
+		  Odd(x')  -> Odd( S(S(x')) )
+
+mapEvenOdd [] =^= []
+mapEvenOdd (x:xs) =^= 
+	let eo = evenOdd x
+	    eos = mapEvenOdd xs
+	in  (eo:eos)
+
+filterH {[],     vs} =^= {[],vs}
+filterH {(s:ss), []} =^= {(s:ss), []}
+filterH {(s:ss), (v:vs)} =^= 
+	case s of
+		Odd(s) ->
+			let {ss', vs'} = filterH {ss,(v:vs)}
+					{s',s''} = dupEq {s}
+			in  {(Odd(s'):ss'), (s'':vs')}
+		Even(s) ->
+			let {ss', vs'} = filterH {ss, vs}
+			in  {(Even(s):ss'), (v:vs')}
+
+filter {ss, vs} =^=
+	let  eos = mapEvenOdd ss
+			 {eos',vs'} = filterH {eos,vs}
+	rlet eos' = mapEvenOdd ss'
+	in {ss',vs'}
+
+
+	--case dupFun s of
+	--	{s',s''} -> 
+	--		let {ss',vs'} = filter {ss,(v:vs)}
+	--		in  {(s':ss'),(s'':vs')}
+	--	{s'} -> 
+	--		let {ss',vs'} = filter {ss,vs}
+	--		in  {(s':ss'), (v:vs')}
+
+
+
+--makeNil xs = {xs,[]}
+
+--rev {[],ys} =^= {[],ys}
+rev {(x:xs), ys} =^= {xs, (x:ys)}
+
+looprev {[], ys} =^= {ys,[]}
+looprev {xs, ys} =^= 
+	let {xs', ys'} = rev {xs,ys} 
+	in looprev {xs',ys'}
+
+
+revers xs =^= 
+	let {ys,[]} = looprev {xs,[]}
+	in  ys
