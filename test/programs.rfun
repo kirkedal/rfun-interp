@@ -140,58 +140,58 @@ zip {(x:xs),(y:ys)} =^=
 -- |Unzip
 unzip v =^= rlet v = zip v' in v'
 
--- scanr specialized to plus
-scanr {i, []}     =^= {i, []}
-scanr {i, (x:xs)} =^= 
-	  let {i', x'} = plus {i, x}
-	      {x'', l} = scanr {x', xs}
-	  in  {i', (x'' : l)}
+-- scanr applying function given in fun
+scanr {fun, i, []}     =^= {fun, i, []}
+scanr {fun, i, (x:xs)} =^= 
+	  let {i', x'} = fun {i, x}
+	      {fun', x'', l} = scanr {fun, x', xs}
+	  in  {fun', i', (x'' : l)}
 
-scanr1 [] =^= []
-scanr1 (x:xs) =^= scanr {x,xs}
+scanr1 {fun, []} =^= {fun, []}
+scanr1 {fun, (x:xs)} =^= scanr {fun,x,xs}
 
--- scanl specialized to plus
-scanl {i, []}      =^= {i, []}
-scanl {i, [x]}     =^= 
-		let {i', x'} = plus {i, x}
-		in  {i', [x']}
-scanl {i, (x : z : xs)} =^= 
-		let {i', (y:ys)} = scanl {i, (z : xs)}
-		    {y', x'} = plus {y, x}
-		in  {i', (x' : y' : ys)}
+-- scanl applying function given in fun
+scanl {fun, i, []}      =^= {fun, i, []}
+scanl {fun, i, [x]}     =^= 
+		let {i', x'} = fun {i, x}
+		in  {fun, i', [x']}
+scanl {fun, i, (x : z : xs)} =^= 
+		let {fun', i', (y:ys)} = scanl {fun, i, (z : xs)}
+		    {y', x'} = fun' {y, x}
+		in  {fun', i', (x' : y' : ys)}
 
--- foldr specialised to plus
+-- foldr applying function given in fun
 --   this is actually more similar to mapAccumR
-foldr {x,[]} =^= {x,[]}
-foldr {x,(y:ys)} =^= 
-	let {y',x'} = plus {y,x}
-	    {x'',ys'} = foldr {x',ys}
-	in  {x'', (y':ys')}
+foldr {fun,x,[]} =^= {fun,x,[]}
+foldr {fun,x,(y:ys)} =^= 
+	let {y',x'} = fun {y,x}
+	    {fun', x'',ys'} = foldr {fun, x',ys}
+	in  {fun', x'', (y':ys')}
 
-foldr1 (x:xs) =^=
+foldr1 {fun, (x:xs)} =^=
 	let {x',x''} = dupEq {x} 
-	    {y, xs'} = foldr {x',xs}
-	in  {y,(x'':xs')}
+	    {fun', y, xs'} = foldr {fun, x',xs}
+	in  {fun', y,(x'':xs')}
 
 
--- foldl specialised to plus
+-- foldl applying function given in fun
 --   this is actually more similar to mapAccumL
-foldl {x,[]} =^= {x,[]}
-foldl {x,(y:ys)} =^= 
-	let {x',ys'} = foldl {x,ys}
-      {y',x''} = plus {y,x'}
-	in  {x'', (y':ys')}
+foldl {fun,x,[]} =^= {fun,x,[]}
+foldl {fun,x,(y:ys)} =^= 
+	let {fun',x',ys'} = foldl {fun,x,ys}
+      {y',x''} = fun' {y,x'}
+	in  {fun', x'', (y':ys')}
 
-foldl1 [x] =^= 
+foldl1 {fun,[x]} =^= 
 	let {x',x''} = dupEq {x}
-	in  {x',[x'']}
-foldl1 (y:ys) =^= 
-	let {x,ys'} = foldl1 ys
-      {y',x'} = plus {y,x}
-	in  {x', (y':ys')}
+	in  {fun,x',[x'']}
+foldl1 {fun,(y:ys)} =^= 
+	let {fun',x,ys'} = foldl1 {fun, ys}
+      {y',x'} = fun' {y,x}
+	in  {fun', x', (y':ys')}
 
 
--- map specialized to inc
+-- map applying the function given in fun
 map {fun,     []  } =^= {fun, []}
 map {fun, (x : xs)} =^= 
 		let x' = fun x
