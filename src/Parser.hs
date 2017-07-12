@@ -5,7 +5,7 @@
 -- License     :  AllRightsReserved
 --
 -- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
--- Stability   :  
+-- Stability   :  None guaranteed?
 -- Portability :
 --
 -- |Implementation a simple parser for rFun
@@ -17,12 +17,8 @@ module Parser (parseString, parseFromFile, parseValue, ParseError) where
 
 
 import Text.ParserCombinators.Parsec hiding (parse,parseFromFile)
--- import Text.ParserCombinators.Parsec.IndentParser hiding (parse,parseFromFile)
 import qualified Text.Parsec.Token as P
---import Text.Parsec.Language
---import qualified Text.Parsec.Char as PC
-import Text.Parsec.Prim (runP)
---import qualified Text.ParserCombinators.Parsec.Expr as E
+import Text.Parsec.Prim (runP, parserFail)
 import Control.Monad.Identity
 
 import Ast
@@ -64,13 +60,13 @@ cStyle = P.LanguageDef {
   P.commentStart    = "",
   P.commentEnd      = "",
   P.commentLine     = "--",
-  P.nestedComments  = False, 
-  P.identStart      = letter <|> char '_', 
+  P.nestedComments  = False,
+  P.identStart      = letter <|> char '_',
   P.identLetter     = alphaNum <|> char '_' <|> char '\'',
-  P.opStart         = oneOf "=-|", 
-  P.opLetter        = oneOf "^=>|-", 
-  P.reservedOpNames = ["=^=", "=", "->"],
-  P.reservedNames   = ["let", "rlet", "in", "case", "of"],
+  P.opStart         = oneOf "=-|",
+  P.opLetter        = oneOf "^=>|-",
+  P.reservedOpNames = ["=^=", "=", "->", "#"],
+  P.reservedNames   = ["let", "rlet", "in", "case", "of", "end"],
   P.caseSensitive   = True
 }
 
@@ -118,22 +114,70 @@ reserved = P.reserved lexer
 -- |Parses a constant (i.e. a number)
 --
 -- Looks kinda useless but the definition of constant is not fixed
---constant :: CharParser st Const
 constant :: CharParser st Int
 constant = lexeme natural >>= return . fromIntegral
 
 --eol = string "\n"
 
-program :: LangParser Program
-program = whiteSpace >> many1 funDef
-
+program :: LangParser  Program
+program =
+  do  whiteSpace
+      f <- many1 funDef
+      eof
+      return f
 
 funDef :: LangParser Func
-funDef = do i <- identifier
-            le <- lexpr
-            symbol "=^="
-            e <- expr
-            return $ Func i le e
+funDef =
+  do  i <- identifier
+      symbol "::"
+      t <- typeSig
+      cases <- many $ funDefPart i
+      when (cases == []) (parserFail $ "Unaccompanied type description (" ++ i ++ ")")
+      return $ Func i t (Var "_ctmp") (CaseOf (Var "_ctmp") cases)
+
+funDefPart :: String -> LangParser (LExpr, Expr)
+funDefPart ident =
+  do  i <- lookAhead identifier
+      when (i /= ident) (parserFail $ "Function name (" ++ i ++") does not match type descriptor (" ++ ident ++ ")")
+      identifier
+      les <- many1 lexpr
+      symbol "="
+      e <- expr
+      return $ ((wrapLExpr les), appLeaves (\x -> wrapLExpr $ (init les)++[x]) e)
+
+
+wrapLExpr :: [LExpr] -> LExpr
+wrapLExpr [x] = x
+wrapLExpr xs  = Constr "Tuple" xs
+
+typeSig :: LangParser TypeSig
+typeSig =
+  do  at <- many $ try eType -- Ancillae types
+      lt <- btype        -- left type
+      symbol "=>"
+      rt <- btype        -- right type
+      return $ TypeSig at lt rt
+  where
+    eType = do t <- extType
+               symbol "->"
+               return t
+
+extType :: LangParser BType
+extType = try btype <|> funT
+  where
+    funT  = do t <- parens typeSig
+               return $ FunT t
+
+btype :: LangParser BType
+btype = try nat <|> try list <|> try tuple <|> try anyT <|> parens btype
+  where
+    nat   = symbol "Nat" >> return Nat
+    list  = do t <- brackets btype
+               return $ List t
+    tuple = do t <- parens $ sepBy btype (symbol ",")
+               return $ Tup t
+    anyT  = do i <- identifier
+               return $ Any i
 
 expr :: LangParser Expr
 expr = try letin <|> try rletin <|> try caseofF <|> try caseof <|> try apply <|> lefte
@@ -148,20 +192,24 @@ expr = try letin <|> try rletin <|> try caseofF <|> try caseof <|> try apply <|>
                     return $ foldr (\(lExpr1, ident, lExpr2) ex -> RLetIn lExpr1 ident lExpr2 ex) e l
         inPart = do reserved "in"
                     e <- expr
+                    reserved "end"
                     return $ e
-        assign = do leout <- lexpr ; 
-                    symbol "=" ; 
+        assign = do leout <- lexpr
+                    symbol "="
                     lookAhead (lower)
-                    fun <- identifier ; 
-                    lein <- lexpr ; 
-                    return $ (leout, fun, lein) 
+                    fun <- identifier
+                    lein <- many1 $ try alexpr
+                    return $ ((wrapLExpr $ init lein++[leout]), fun, wrapLExpr lein)
+        alexpr = do l <- lexpr
+                    notFollowedBy $ choice [symbol "=", symbol "::"]
+                    return l
         caseofF= do reserved "case"
                     lookAhead (lower)
                     fun <- identifier
                     le <- lexpr
                     reserved "of"
                     c <- many1 $ try cases
-                    return $ LetIn (Var "_tmp") fun le (CaseOf (Var "_tmp") c) 
+                    return $ LetIn (Var "_tmp") fun le (CaseOf (Var "_tmp") c)
         caseof = do reserved "case"
                     le <- lexpr
                     reserved "of"
@@ -171,19 +219,18 @@ expr = try letin <|> try rletin <|> try caseofF <|> try caseof <|> try apply <|>
                     return $ LeftE le
         apply  = do lookAhead (lower)
                     fun <- identifier
-                    le <- lexpr
-                    notFollowedBy $ lexpr >> symbol "=^="
-                    return $ LetIn (Var "_tmp") fun le (LeftE (Var "_tmp"))
---        cases  =    try $ braces cases_ <|> cases_
-        cases  =     cases_
-        cases_ = do le <- lexpr
+                    le <- many1 alexpr
+                    return $ LetIn (wrapLExpr $ init le ++ [Var "_tmp"]) fun (wrapLExpr le) (LeftE (Var "_tmp"))
+        cases  = do le <- lexpr
                     symbol "->"
                     e <- expr
                     return (le,e)
 
 constToConstr :: Int -> LExpr
-constToConstr 0 = Constr "Z" []
-constToConstr n = Constr "S" [constToConstr (n-1)]
+constToConstr n
+    | n == 0    = Constr "Z" []
+    | n <  0    =  Constr "P" [constToConstr (n+1)]
+    | otherwise =  Constr "S" [constToConstr (n-1)]
 
 lexpr :: LangParser LExpr
 lexpr = try consta <|> try vari <|> try tuple <|> try dupeq <|> try constr <|> try constrN <|> try list1 <|> try list2 <|> parenE
@@ -193,7 +240,7 @@ lexpr = try consta <|> try vari <|> try tuple <|> try dupeq <|> try constr <|> t
         vari   = do lookAhead (lower)
                     var <- identifier
                     return $ Var var
-        tuple  = do les <- braces $ lexpr `sepBy1` (symbol ",")
+        tuple  = do les <- braces $ lexpr `sepBy` (symbol ",")
                     return $ Constr "Tuple" les
         dupeq  = do symbol "|"
                     le <- lexpr
@@ -213,28 +260,36 @@ lexpr = try consta <|> try vari <|> try tuple <|> try dupeq <|> try constr <|> t
         parenE = parens lexpr
 
 
+-------------------------------------------------------------------------------
+-- * Parsing values
+-------------------------------------------------------------------------------
 
-
--- Parsing values
 constToValue :: Int -> Value
-constToValue 0 = ConstrV "Z" []
-constToValue n = ConstrV "S" [constToValue (n-1)]
+constToValue n
+    | n == 0    = ConstrV "Z" []
+    | n <  0    = ConstrV "P" [constToValue (n+1)]
+    | otherwise = ConstrV "S" [constToValue (n-1)]
 
 value :: LangParser Value
-value = try consta <|> try tuple <|> try constr <|> try constrN <|> try list <|> parenV
+value = do vs <- many1 bvalue
+           return $ wrap vs
+  where 
+    wrap [x] = x
+    wrap xs  = ConstrV "Tuple" xs
+
+bvalue :: LangParser Value
+bvalue = try consta <|> try tuple <|> try constr <|> try constrN <|> try list <|> parenV
     where
         consta = do c <- constant
                     return $ constToValue c
-        tuple  = do les <- braces $ value `sepBy1` (symbol ",")
+        tuple  = do les <- braces $ bvalue `sepBy` (symbol ",")
                     return $ ConstrV "Tuple" les
         constr = do i <- identifier
-                    vars <- parens $ value `sepBy` (symbol ",")
+                    vars <- parens $ bvalue `sepBy` (symbol ",")
                     return $ ConstrV i vars
         constrN= do i <- identifier
                     return $ ConstrV i []
-        --list1  = parens $ chainr1 value cons
-        --cons   = do symbol ":"; pure (\v1 v2 -> ConstrV "Cons" [v1,v2])
-        list   = do l <- brackets $ value `sepBy` (symbol ",")
+        list   = do l <- brackets $ bvalue `sepBy` (symbol ",")
                     return $ foldr (\a b -> ConstrV "Cons" [a,b]) (ConstrV "Nil" []) l
-        parenV = parens value
-        
+        parenV = parens bvalue
+
