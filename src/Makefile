@@ -1,18 +1,27 @@
-FILES=Ast.hs Interp.hs Main.hs Parser.hs Preparse.hs
+RFUNFILES=Ast.hs MainRFun.hs ParserRFun.hs PrettyPrinter.hs TypeCheck.hs Interp.hs
+COREFILES=MainCore.hs Core/Ast.hs Core/Interp.hs Core/Parser.hs Core/Preparse.hs Core/RFun2Prog.hs
+BNFC=rfun.cf
 
-rfun: $(FILES)
-	ghc --make  -Wall -fno-warn-unused-do-bind -XGeneralizedNewtypeDeriving Main.hs 
+rfun: $(RFUNFILES)
+	ghc --make -o rfun -Wall -fno-warn-unused-do-bind -XGeneralizedNewtypeDeriving MainRFun.hs
 
-optimized: $(FILES)
-	ghc -O2 -rtsopts --make -XGeneralizedNewtypeDeriving Main.hs
+core: $(COREFILES)
+	ghc --make -o rfunCore -Wall -fno-warn-unused-do-bind -XGeneralizedNewtypeDeriving MainCore.hs
 
-haddock h: $(FILES)
-	haddock -h -o ../docs/ Main.hs
+optimized: $(RFUNFILES)
+	ghc -O2 -rtsopts --make -XGeneralizedNewtypeDeriving MainRFun.hs
+
+haddock h: $(RFUNFILES)
+	haddock -h -o ../docs/ MainRFun.hs
 
 clean:
-	rm -f $(subst .hs,.o,$(FILES))
-	rm -f $(subst .hs,.hi,$(FILES))
-	rm -f Main
+	rm -f $(subst .hs,.o,$(RFUNFILES))
+	rm -f $(subst .hs,.hi,$(RFUNFILES))
+	rm -f rfun
+	rm -f $(subst .hs,.o,$(COREFILES))
+	rm -f $(subst .hs,.hi,$(COREFILES))
+	rm -f rfunCore
+	rm -f *.bak
 
 test:
 	(cd ../test; sh MyTest.txt)

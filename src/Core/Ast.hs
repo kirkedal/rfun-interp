@@ -36,7 +36,7 @@
 --
 -----------------------------------------------------------------------------
 
-module Ast where
+module Core.Ast where
 
 import qualified Data.Map as M
 import Data.List (intercalate)
@@ -52,15 +52,8 @@ type Program  = [Func]
 -- |A function is an identifier is some left-expression as parameter and
 --  an expression as body
 data Func     = Func { funcname  :: Ident
-                     , typesig   :: TypeSig
                      , param     :: LExpr
                      , body      :: Expr }
-              deriving (Eq, Show)
-
-data TypeSig  = TypeSig [BType] BType BType
-              deriving (Eq, Show)
-
-data BType    = Nat | Any String | List BType | Tup [BType] | FunT TypeSig
               deriving (Eq, Show)
 
 -- |An expression is
@@ -96,13 +89,6 @@ constrToNum (Constr "S" [lExpr]) = do n <- constrToNum lExpr ; Just $ n + 1
 constrToNum (Constr "P" [lExpr]) = do n <- constrToNum lExpr ; Just $ n - 1
 constrToNum _c = Nothing
 
--- |Apply a function to all leafs of an expression
-appLeaves :: (LExpr -> LExpr) -> Expr -> Expr
-appLeaves fun (LeftE le)           = LeftE $ fun le
-appLeaves fun (LetIn lle i rle e)  = LetIn lle i rle $ appLeaves fun e
-appLeaves fun (RLetIn lle i rle e) = RLetIn lle i rle $ appLeaves fun e
-appLeaves fun (CaseOf cle cases)   = CaseOf cle $ map (\(le,e) -> (le, appLeaves fun e)) cases
-
 
 -- |Function environments (to be used later) is a mapping from Identifiers to a Function
 type FuncEnv = M.Map Ident Func
@@ -116,18 +102,7 @@ class Pretty a where
   pretty :: a -> String
 
 instance Pretty Func where
-  pretty (Func funname tsig funparam funbody) = funname ++ " :: " ++ pretty tsig ++ "\n" ++
-    funname ++ " " ++ pretty funparam ++ " =^= \n" ++ pretty funbody
-
-instance Pretty TypeSig where
-  pretty (TypeSig at ft tt) = (intercalate " -> " $ map pretty at) ++ " -> " ++ pretty ft ++ " => " ++ pretty tt
-
-instance Pretty BType where
-  pretty Nat = "Nat"
-  pretty (Any s) = s
-  pretty (List t) = "[" ++ pretty t ++ "]"
-  pretty (Tup t)   = "(" ++ (intercalate ", " $ map pretty t) ++ ")"
-  pretty (FunT tsig) = "(" ++ pretty tsig ++ ")"
+  pretty (Func funname funparam funbody) = funname ++ " " ++ pretty funparam ++ " =^= \n" ++ pretty funbody
 
 instance Pretty LExpr where
   pretty (Var ident) = ident
@@ -153,11 +128,11 @@ instance Pretty LExpr where
 instance Pretty Expr where
   pretty (LeftE lExpr) = pretty lExpr
   pretty (LetIn lExpr_out ident lExpr_in expr) =
-        "let " ++ pretty lExpr_out ++ " = " ++ ident ++ " " ++ pretty lExpr_in ++ "\n in " ++ pretty expr
-  pretty (RLetIn lExpr_out ident lExpr_in expr) =
-        "rlet " ++ pretty lExpr_out ++ " = " ++ ident ++ " " ++ pretty lExpr_in ++ "\n in " ++ pretty expr
+        "let " ++ pretty lExpr_out ++ " = " ++ ident ++ " " ++ pretty lExpr_in ++ "\n in " ++ pretty expr ++ "\n"
+  pretty (RLetIn lExpr_in ident lExpr_out expr) =
+        "rlet " ++ pretty lExpr_in ++ " = " ++ ident ++ " " ++ pretty lExpr_out ++ "\n in " ++ pretty expr ++ "\n"
   pretty (CaseOf lExpr matches) =
-        "case " ++ pretty lExpr ++ " of " ++ "{\n" ++ intercalate "\n" (map (\(le,e) -> pretty le ++ " -> " ++ pretty e) matches) ++ "\n}"
+        "case " ++ pretty lExpr ++ " of " ++ "{\n" ++ intercalate "\n" (map (\(le,e) -> pretty le ++ " -> " ++ pretty e) matches) ++ "}"
 
 getList :: LExpr -> Maybe [LExpr]
 getList (Constr "Nil" []) = Just([])
@@ -168,3 +143,4 @@ getList _ = Nothing
 
 instance Pretty Value where
   pretty value = pretty $ valueToLExpr value
+

@@ -15,9 +15,9 @@
 --
 -----------------------------------------------------------------------------
 
-module Preparse where
+module Core.Preparse where
 
-import Ast
+import Core.Ast
 import qualified Data.Map as M
 import Data.List (nub)
 
@@ -56,22 +56,15 @@ programToFuncEnvSS program = map (\x -> (x, filter (\y -> funcname y == x) progr
 -- ** De-sugar pattern matching in arguments, while preserving order
 -------------------------------------------------------------------------------
 
+-- |De-sugar pattern matching in arguments, while preserving order
 desugarArgPatMatch :: [(Ident,[Func])] -> [(Ident,Func)]
 desugarArgPatMatch = map desugarArgPatMatchSingle
   where
     desugarArgPatMatchSingle (_  , []) = error "Function list cannot be empty"
     desugarArgPatMatchSingle (idt, [func]) = (idt, func)
-    desugarArgPatMatchSingle (idt, _) = error $ "Multiply defined function: " ++ show idt
-
--- |De-sugar pattern matching in arguments, while preserving order
--- desugarArgPatMatch :: [(Ident,[Func])] -> [(Ident,Func)]
--- desugarArgPatMatch = map desugarArgPatMatchSingle
---   where
---     desugarArgPatMatchSingle (_  , []) = error "Function list cannot be empty"
---     desugarArgPatMatchSingle (idt, [func]) = (idt, func)
---     desugarArgPatMatchSingle (idt, funcs) = (idt, Func idt (Var "_ctmp") (CaseOf (Var "_ctmp") cases))
---       where
---         cases = map (\x -> (param x, body x)) funcs
+    desugarArgPatMatchSingle (idt, funcs) = (idt, Func idt (Var "_ctmp") (CaseOf (Var "_ctmp") cases))
+      where
+        cases = map (\x -> (param x, body x)) funcs
 
 -------------------------------------------------------------------------------
 -- ** De-sugar function calls in expressions

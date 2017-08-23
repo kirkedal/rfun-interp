@@ -20,27 +20,27 @@
 
 module Main (main) where
 
-import Ast
-import Parser (parseFromFile, parseValue, parseString, ParseError)
-import Preparse (runPreparse)
-import Interp (runProg, ErrorRFun, EvalTrace)
-import RFun2Prog (parseRFun)
+import Core.Ast
+import Core.Parser (parseFromFile, parseValue, parseString, ParseError)
+import Core.Preparse (runPreparse)
+import Core.Interp (runProg, ErrorRFun, EvalTrace)
+import Core.RFun2Prog (parseRFun)
 import System.Environment
 import System.Exit
-import System.Timeout
+-- import System.Timeout
 import qualified Data.Map as M
 
 
 -- |Main function
 main :: IO ()
-main = 
-  do 
+main =
+  do
     args <- getArgs
     case args of
-      [program, value, filename] -> 
+      [program, value, filename] ->
         do
-          res <- timeout (5 * 1000000) $ parseAndRun program value filename -- 5 second
-          -- res <- parseAndRun program value filename >>= \x -> return $ Just x
+          -- res <- timeout (5 * 1000000) $ parseAndRun program value filename -- 5 second
+          res <- parseAndRun program value filename >>= \x -> return $ Just x
 
           case res of
             Nothing -> exitWith $ ExitFailure 124

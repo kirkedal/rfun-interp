@@ -20,9 +20,9 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Interp where
+module Core.Interp where
 
-import Ast
+import Core.Ast
 import qualified Data.Map as M
 import Control.Monad
 import Control.Monad.Writer
@@ -230,7 +230,7 @@ evalExpS funcEnv (LetIn lExpr_out ident lExpr_in expr) value =
     disUnion sub_in sub_e
   where
     vars = findVars lExpr_out
-evalExpS funcEnv (RLetIn lExpr_out ident lExpr_in expr) value =
+evalExpS funcEnv (RLetIn lExpr_in ident lExpr_out expr) value =
   do
     sub_end <- evalExpS funcEnv expr value
     (sub_out, sub_e) <- divide vars sub_end
@@ -270,7 +270,7 @@ evalExpV funcEnv sub (LetIn lExpr_out ident lExpr_in expr) =
     evalExpV funcEnv sub_end expr
   where
     vars = findVars lExpr_in
-evalExpV funcEnv sub (RLetIn lExpr_out ident lExpr_in expr) =
+evalExpV funcEnv sub (RLetIn lExpr_in ident lExpr_out expr) =
   do
     (sub_in, sub_e) <- divide vars sub
     val_in <- evalRMatchV sub_in lExpr_in
