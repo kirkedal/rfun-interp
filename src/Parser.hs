@@ -1,5 +1,5 @@
 
-module Parser (parseFromFile, prettyParseError, ParserError) where
+module Parser (parseFromFile, parseFromValue, prettyParseError, ParserError) where
 
 import Ast
 
@@ -20,6 +20,9 @@ parseFromFile fname =
   do input <- readFile fname
      return (parse programParser fname input)
      -- return (parse programParser fname input)
+
+parseFromValue :: String -> Either ParserError Value
+parseFromValue s = parse pValue "Value" s
 
 lineComment :: Parser ()
 lineComment = L.skipLineComment "--"
@@ -46,7 +49,7 @@ symbol :: String -> Parser ()
 symbol s = L.symbol' sc s >> return ()
 
 reservedWords :: [String]
-reservedWords = ["let", "in", "case", "of", "data"]
+reservedWords = ["let", "in", "case", "of", "data", "eq", "id"]
 
 reserved :: String -> Parser ()
 reserved s = lexeme $ (string s >> return ())
@@ -239,4 +242,22 @@ pLexprA = try app <|> try parLE <|> pLexpr  <?> "Left-expression"
     parLE  = parens pLexprA
 
 
+pValue :: Parser Value
+pValue = int <|> tuple <|> list <|> try funName <|> try constr <|> try constrp <|> try tuple <|> par <?>  "Value"
+
+  where
+    int    = do i <- integer
+                return $ IntV i
+    tuple  = do vs <- parens $ pValue `sepBy` (symbol ",")
+                return $ TupleV vs
+    list   = do vs <- brackets $ pValue `sepBy1` (symbol ",")
+                return $ ListV vs
+    constr = do c <- pConstructor
+                return $ ConstrV (identifier c) []
+    constrp= do c <- pConstructor
+                vars <- many pValue
+                return $ ConstrV (identifier c) vars
+    funName= do i <- pIdentifier
+                return $ FunV $ identifier i
+    par    = parens pValue
 

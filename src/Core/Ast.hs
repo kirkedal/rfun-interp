@@ -41,11 +41,6 @@ module Core.Ast where
 import qualified Data.Map as M
 import Data.List (intercalate)
 
-data Module   = Module { moduleName    :: Ident
-                       , moduleExports :: [Ident]
-                       , moduleImports :: [Ident]
-                       , moduleProgram :: Program}
-              deriving (Eq, Show)
 -- |A program is a sequence of functions
 type Program  = [Func]
 

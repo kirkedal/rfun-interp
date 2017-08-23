@@ -1,4 +1,4 @@
-module PrettyPrinter (ppProgram, ppBType, ppLExpr, ppIdent, ppIdentFile, ppIdentPos, ppIdentLine) where
+module PrettyPrinter (ppProgram, ppBType, ppLExpr, ppIdent, ppIdentFile, ppIdentPos, ppIdentLine, ppValue) where
 
 import Ast
 
@@ -28,6 +28,10 @@ ppIdentPos i = "line " ++ (showPos $ sourceLine $ sourcePos i) ++ ", column " ++
 
 ppIdentLine :: Ident -> String
 ppIdentLine i = "line " ++ (showPos $ sourceLine $ sourcePos i)
+
+ppValue :: Value -> String
+ppValue = render . formatValue
+
 
 showPos :: Pos -> String
 showPos = show . unPos
@@ -136,6 +140,14 @@ nilTerm _              = False
 
 formatIdent :: Ident -> Doc
 formatIdent = text.identifier
+
+formatValue :: Value -> Doc
+formatValue (IntV i)  = integer i
+formatValue (TupleV values) = parens $ commaSep formatValue values
+formatValue (ListV  values) = brackets $ commaSep formatValue values
+formatValue (ConstrV ident values) = parens $ text ident <+> (hsep (map formatValue values))
+formatValue (FunV i) = text i
+
 
 commaSep :: (a -> Doc) -> [a] -> Doc
 commaSep f x = hcat $ intersperse (text ", ") $ map f x

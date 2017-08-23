@@ -118,10 +118,10 @@ constant :: CharParser st Int
 constant = lexeme natural >>= return . fromIntegral
 
 --eol = string "\n"
-    
+
 program :: LangParser  Program
-program = 
-    do  whiteSpace 
+program =
+    do  whiteSpace
         f <- many1 funDef
         return f
 

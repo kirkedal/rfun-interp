@@ -4,7 +4,7 @@ import Parser
 import Ast
 import PrettyPrinter
 import TypeCheck
--- import Interp
+import Interp
 
 import System.Environment
 import System.Exit
@@ -14,10 +14,14 @@ main =
   do
     args <- getArgs
     case args of
-      [str] -> parseProgram str >>= typecheckProgram >>= prettyPrintProgram
-      _ -> putStrLn "Wrong number of arguments.\nUsage:\n  \"rfun\" startfunc startvalue programfile\nor to stop before interpretation:\n  \"rfun\" programfile "
-
--- runProgram :: Program -> 
+      (filename : program : values) ->
+        do p <- parseProgram filename
+           vs <- parseValues values
+           case interp p program vs of
+             Left err  -> putStrLn "Run-time error:" >> (putStrLn $ err)
+             Right res -> putStrLn $ ppValue res
+      [filename] -> parseProgram filename >>= typecheckProgram >>= prettyPrintProgram
+      _ -> putStrLn "Wrong number of arguments.\nUsage:\n  \"rfun\" programfile startfunc startvalue*\nor to stop before interpretation:\n  \"rfun\" programfile "
 
 typecheckProgram :: Program -> IO Program
 typecheckProgram p =
@@ -30,6 +34,9 @@ prettyPrintProgram = putStrLn.ppProgram
 
 parseProgram :: String -> IO Program
 parseProgram filename = parseFromFile filename >>= fromParserError
+
+parseValues :: [String] -> IO [Value]
+parseValues strV = fromParserError $ (mapM parseFromValue strV)
 
 fromParserError :: Either ParserError a -> IO a
 fromParserError (Left err) = (putStr (prettyParseError err)) >> (exitWith $ ExitFailure 1)
