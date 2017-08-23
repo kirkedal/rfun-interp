@@ -17,6 +17,7 @@ main =
       (filename : program : values) ->
         do p <- parseProgram filename
            vs <- parseValues values
+           typecheckProgram p
            case interp p program vs of
              Left err  -> putStrLn "Run-time error:" >> (putStrLn $ err)
              Right res -> putStrLn $ ppValue res

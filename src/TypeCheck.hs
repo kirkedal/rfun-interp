@@ -59,6 +59,8 @@ checkFunctionDefinitions dataT@(DataType _ _) = noTypeError
 
 -- |Check if all functions have type signatures
 hasTypeSignature :: Func -> TCError ()
+hasTypeSignature func@(Func i _ _) | (identifier i) == "eq" = fail $ "eq is a reserved function name."
+hasTypeSignature func@(Func i _ _) | (identifier i) == "id" = fail $ "id is a reserved function name."
 hasTypeSignature func@(Func _ _ _) =
   case (funcTypesig func) of
     (Just _) -> noTypeError

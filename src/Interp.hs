@@ -33,7 +33,9 @@ fromCoreValue v = Left $ show $ fcValue v
 
 toCore :: Program -> C.Program
 toCore p = (C.Func "id" (C.Var "_ctmp") (C.LeftE (C.Var "_ctmp"))):
-           (C.Func "eq" (C.Constr "Tuple" [C.Var "_ctmp", C.Constr "Tuple" []]) (C.LeftE (C.DupEq (C.Constr "Tuple" [C.Var "_ctmp"]) ))):
+           (C.Func "eq" (C.Var "_ctmp")
+             (C.CaseOf (C.DupEq (C.Var "_ctmp"))
+               [(C.Constr "Tuple" [C.Var "_ctmp"], C.LeftE (C.Constr "Tuple" [C.Var "_ctmp", C.Constr "Tuple" []]))])):
            (catMaybes $ map tcFunc p)
 
 tcFunc :: Func -> Maybe C.Func
