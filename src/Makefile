@@ -1,4 +1,4 @@
-RFUNFILES=Ast.hs MainRFun.hs ParserRFun.hs PrettyPrinter.hs TypeCheck.hs Interp.hs
+RFUNFILES=Ast.hs MainRFun.hs Parser.hs PrettyPrinter.hs TypeCheck.hs Interp.hs
 COREFILES=MainCore.hs Core/Ast.hs Core/Interp.hs Core/Parser.hs Core/Preparse.hs Core/RFun2Prog.hs
 BNFC=rfun.cf
 
