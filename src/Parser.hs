@@ -183,7 +183,7 @@ pGuard = try someguard <|> (return $ Guard [])
           return $ Guard gs
 
 pExpr :: Parser Expr
-pExpr = try (L.lineFold scn letin) <|> try caseof <|> lefte <?> "expression"
+pExpr = (L.lineFold scn letin) <|> caseof <|> lefte <?> "expression"
   where
     letin sc'  = do il <- L.indentLevel
                     reserved "let"
@@ -246,7 +246,7 @@ pLexpr = constr <|> vari <|> int <|> listf <|> try (parens constrp) <|> try tupl
 
 -- |Parsing a complete left-expression; including function application
 pLexprA :: Parser LExpr
-pLexprA = try app <|> try parLE <|> pLexpr  <?> "Left-expression"
+pLexprA = try app <|> try pLexpr <|> parLE  <?> "Left-expression"
   where
     app    = do fun <- pIdentifier
                 inv <- optional $ symbol "!"

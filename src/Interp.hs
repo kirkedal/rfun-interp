@@ -46,7 +46,8 @@ toCore :: Program -> C.Program
 toCore p = (C.Func "id" (C.Var "_ctmp") (C.LeftE (C.Var "_ctmp"))):
            (C.Func "eq" (C.Var "_ctmp")
              (C.CaseOf (C.DupEq (C.Var "_ctmp"))
-               [(C.Constr "Tuple" [C.Var "_ctmp"], C.LeftE (C.Constr "Tuple" [C.Var "_ctmp", C.Constr "Tuple" []]))])):
+               [(C.Constr "Tuple" [C.Var "_ctmp"], C.LeftE (C.Constr "Tuple" [C.Var "_ctmp", C.Constr "Eq" []])),
+                (C.Constr "Tuple" [C.Var "_ctmp", C.Var "_ctmp2"], C.LeftE (C.Constr "Tuple" [C.Var "_ctmp", C.Constr "Neq" [C.Var "_ctmp2"]]))])):
            (catMaybes $ map tcFunc p)
 
 tcFunc :: Func -> Maybe C.Func

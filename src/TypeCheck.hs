@@ -79,9 +79,8 @@ hasTypeSignature func@(Func _ _ _) =
   case (funcTypesig func) of
     (Just _) -> noTypeError
     Nothing  -> fail $ errorNoTypeSignature (funcName func)
+hasTypeSignature (DataType i _) | (identifier i) == "EQ" = fail $ "EQ is a reserved datatype name."
 hasTypeSignature (DataType _ _) = noTypeError
-
-
 
 
 ---------
@@ -122,7 +121,6 @@ typeUnification (TypeSig ancTs1 leftT1 rightT1) (TypeSig ancTs2 leftT2 rightT2) 
      return $ TypeSig ancT leftT rightT
 
 bTypeUnification :: BType -> BType -> Maybe BType
--- bTypeUnification NatT NatT = Just NatT
 bTypeUnification t@(DataT i1) (DataT i2) | identifier i1 == identifier i2 = Just t
 bTypeUnification (ListT t1) (ListT t2) =
   case bTypeUnification t1 t2 of
@@ -170,9 +168,12 @@ getLExprType (App _ _ _) = Just AnyT
 type FunEnv = M.Map String Func
 
 fenvFromProgram :: Program -> FunEnv
-fenvFromProgram p = M.fromList $ map f p
+fenvFromProgram p = M.fromList $ (eqTD:(map f p))
   where f func@(Func _ _ _) = ((identifier.funcName) func, func)
         f dataT@(DataType _ _) = ((identifier.dataName) dataT, dataT)
+        eqTD = ("EQ", DataType (makeIdent "EQ") (M.fromList [
+                  ("Eq",  (makeIdent "Eq", [])),
+                  ("Neq", (makeIdent "Neq", [AnyT]))]) )
 
 data VarType = Ancillae BType | Live BType | Killed
              deriving (Eq, Show)
@@ -233,7 +234,7 @@ varExist i =
      return $ M.member (identifier i) v
 
 funTypeSig :: Ident -> TC TypeSig
-funTypeSig i | (identifier i) == "eq" = return $ TypeSig [VarT i] (VarT i) (ProdT [])
+funTypeSig i | (identifier i) == "eq" = return $ TypeSig [VarT i] (VarT i) (DataT $ makeIdent "EQ")
 funTypeSig i =
   do fenv <- ask
      case M.lookup (identifier i) fenv of
@@ -316,7 +317,7 @@ checkLExpr addFun le@(List lExprList) tp@(ListT btype) = getListLExprType lExprL
            Nothing -> throwError $ errorLExprUnification le tp
            Just t -> return t
     getListLExprType (ListEnd  lExpr) = checkLExpr addFun lExpr (ListT btype)
-    getListLExprType ListNil = return btype
+    getListLExprType ListNil = return tp
 checkLExpr _ lExpr@(List _) t = throwError $ errorLExprUnification lExpr t
 checkLExpr addFun (App ident True lExprs) _ =
   do (TypeSig ancTs updT retT) <- funTypeSig ident
