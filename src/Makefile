@@ -8,8 +8,8 @@ rfun: $(RFUNFILES)
 core: $(COREFILES)
 	ghc --make -o rfunCore -Wall -fno-warn-unused-do-bind -XGeneralizedNewtypeDeriving MainCore.hs
 
-optimized: $(RFUNFILES)
-	ghc -O2 -rtsopts --make -XGeneralizedNewtypeDeriving MainRFun.hs
+optimized opt: $(RFUNFILES)
+	ghc -O2 -o ../bin/rfun -rtsopts --make -XGeneralizedNewtypeDeriving MainRFun.hs
 
 haddock h: $(RFUNFILES)
 	haddock -h -o ../docs/ MainRFun.hs
