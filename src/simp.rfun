@@ -44,7 +44,7 @@ length (x : xs) () =
   in (S l)
 
 move :: Nat -> ([a], [a]) <-> ([a], [a])
-move  Z      (   x  , l) = (x, l)
+move  Z     (   x  , l) = (x, l)
 move (S s) ((x:xs), l) =
   move s (xs,(x:l))
 

@@ -81,7 +81,7 @@ tcLExpr (Tuple  lExprs) = C.Constr "Tuple" (map tcLExpr lExprs)
 tcLExpr (List   (ListCons lExpr lExprList)) = C.Constr "Cons" [tcLExpr lExpr, tcLExpr (List lExprList)]
 tcLExpr (List   (ListEnd  lExpr)) = tcLExpr lExpr
 tcLExpr (List   ListNil) = C.Constr "Nil" []
--- tcLExpr (App ident True lExprs) = 
+tcLExpr (App _ _ _) = error ""
 
 tcIdent :: Ident -> C.Ident
 tcIdent (Ident s _) = s

@@ -1,14 +1,43 @@
 # RFun: A reversible functional programming language
 
-Some text describing the basics of the language
+This is a tutorial that introduces the reversible functional RFun. More specifically, this tutorial describes RFun version 2. It is intended to give a good overview of the language and make the reader able to start writing his/hers own programs. 
 
-## Simple Example
+It is not intended to give a detailed formalisation RFun, and for this we refer to the references. Also we do not give any background of reversible computations nor any motivation for looking it at the first place; for this we will refer to [...].
+
+Note also that RFun is being actively developed. It is therefore expected that the language will change over time. If you find the language interesting, you can also participate in the further development.
+
+## Running RFun programs
+You can find the source code for the RFun compiler at: 
 
 ...
 
+Alternatively, you can also use our online interpreter, which is available at:
+
+....
+
+
 ## History
 
-..
+RFun was first introduces in 2013 by Holger Bock Axelsen, Tetsuo Yokoyama and Robert Glück [1]. It was introduced as a simple reversible untyped first-order functional language, and focused on the theoretical foundation and formal semantics. It is also noteworthy to add that the language is R-Turing complete; i.e. Turing complete with the restriction to reversible programs.
+
+Later work by Michael Kirkedal Thomsen and Holger Bock Axelsen [2] detailed how implemented RFun and what to consider when developing programs. This work also added much syntactic sugar to make the program easier to program. Finally we added function pointers such that functions like `map` could be implemented.
+
+This second version of RFun can be credited to two event. Firstly, follows much from the work in [2]. It was the first time that larger programs was developed in RFun and it gave much insight to what needed to be improved. Secondly, it can be credited to the Training School on Reversible Computations held in Torún. When teaching the a language to 20+ students you have to move it from a simple proof-of-concept language to consider one that can be easily understood.
+
+## Simple Example
+
+For historical reasons the Fibonacci function have always been used as a _Hello World_ program for reversible language. There is no reason to change this so here it is:
+
+```
+fib :: Nat <-> (Nat, Nat)
+fib Z     = ((S Z),(S Z))
+fib (S m) =
+  let (x,y) = fib m
+      y' = plus x y
+  in (y',x)
+```
+
+As second example we will give is the run-lenght encoding function.
 
 ## Syntax
 
@@ -17,7 +46,7 @@ q ::= d*                                              (program)
 d ::= t                                               (type signature)
     | f l = e                                         (definition)
 t ::= b -> t
-    | b => b
+    | b <-> b
 b ::= Nat
     | [b]
     | {b_1,...,b_m}
@@ -42,9 +71,11 @@ l ::= x                                               (variable)
 
 ### Linearity
 
-### First match policy
 
 ### Ancillae
+Ancillae (or an ancilla variable) is a term that have been adapted from physics and covers a state in which the entropy is unchanged. Here we specifically use it for variables for which we can _guarantee_ that the value is unchanged over a function call. We cannot put too little emphasis on the _guarantee_. It means t
+
+### First match policy
 
 ## Examples
 Let's look at some examples to get a better understanding of RFun.
@@ -62,15 +93,15 @@ Specific natural numbers can also be written with the relating integer value.
 The first interesting operation we can define over our natural number are an increment function. First we define the data type
 
 ```
-inc :: Nat => Nat
+inc :: Nat <-> Nat
 ```
 
-which defines `inc` to be a function that given a `Nat` returns a `Nat`. Though RFun have many similarities with other functional languages (the type signature is inspired by Haskell) the usage of `=>` and not `->` is important. By `f :: a => b` we define `f` to be a function that consumes an input of type `a` and returns an output of type `b`. Here consumes should be take literally; to ensure reversibility, all information of `a` must be transformed and _conserved_ into `b`.
+which defines `inc` to be a function that given a `Nat` returns a `Nat`. Though RFun have many similarities with other functional languages (the type signature is inspired by Haskell) the usage of `<->` and not `->` is important. By `f :: a <-> b` we define `f` to be a function that consumes an input of type `a` and returns an output of type `b`. Here consumes should be take literally; to ensure reversibility, all information of `a` must be transformed and _conserved_ into `b`.
 
 We can now move onto defining the incremental function as
 
 ```
-inc :: Nat => Nat
+inc :: Nat <-> Nat
 inc n = S(n)
 ```
 
@@ -79,14 +110,14 @@ We see here that our left-hand-side variable `n` occurs once on the right-hand-s
 As we now have in incrementing function we can move onto defining a decrementing function. In a normal language we would do this in the standard was as
 
 ```
-dec :: Nat => Nat
+dec :: Nat <-> Nat
 dec S(n) = n
 ```
 
 However, we know that decrementing is the symmetrical inverse of incrementing, so given that we have a reversible language we can define this using a reverse interpretation of the forward call, thus
 
 ```
-dec :: Nat => Nat
+dec :: Nat <-> Nat
 dec n = 
   rlet n' = inc n
   in   n'
@@ -97,7 +128,7 @@ Granted, these are not the most interesting functions, but we now have a first g
 So let's define the type for our `plus` function. A first attempt could be
 
 ```
-plus :: {Nat, Nat} => {Nat, Nat}
+plus :: {Nat, Nat} <-> {Nat, Nat}
 ```
 
 Note that we here use braces `{` and `}` to denote tuples, which is a  second build-in type of RFun.
@@ -105,13 +136,13 @@ Note that we here use braces `{` and `}` to denote tuples, which is a  second bu
 The above matches perfectly the above understanding, that plus takes a pair of `Nat`'s and returns another pair of `Nat`'s. However, we do actually have more information than this: we also know that the value of one of the numbers is unchanged. This information we can include in our type signatures as
 
 ```
-plus :: Nat -> Nat => Nat
+plus :: Nat -> Nat <-> Nat
 ```
 
-Here `plus` is defined as a function that take a `Nat` that must be unchanged over the computation (ancillae) and another `Nat` that is transformed into a `Nat`. That the first `Nat` is unchanged is something that we must ensure in our computation. Note that `=>` binds stronger than `->`. So how can we define such a function? Well, looks much like the normal implementation
+Here `plus` is defined as a function that take a `Nat` that must be unchanged over the computation (ancillae) and another `Nat` that is transformed into a `Nat`. That the first `Nat` is unchanged is something that we must ensure in our computation. Note that `<->` binds stronger than `->`. So how can we define such a function? Well, looks much like the normal implementation
 
 ```
-plus :: Nat -> Nat => Nat
+plus :: Nat -> Nat <-> Nat
 plus Z    x = x
 plus S(y) x =
   let x' = plus y x
@@ -127,7 +158,7 @@ This arguments here was a bit handwaving, but given the type signature and the a
 We can actually with simple program transformation transform our `plus` function into a paired version of addition that matches out initial type signature. 
 
 ```
-plusP :: {Nat, Nat} => {Nat, Nat}
+plusP :: {Nat, Nat} <-> {Nat, Nat}
 plusP {Z,    x} = {Z, x}
 plusP {S(y), x} =
   let {y, x'} = plusP {y, x}
@@ -149,13 +180,13 @@ Note that the copying of ancillae arguments seemingly destroys referential trans
 Lists is the third and final build-in data type of RFun and from a functional perspective very interesting. We will start by defining the favourite `map` function.
 
 ```
-map :: (a => b) -> [a] => [b]
+map :: (a <-> b) -> [a] <-> [b]
 ```
 
 The type signature tells us that `map` is a function that given a function (which will not be changed) that transforms an input of type `a` to an output of type `b` will tranform a list of `a`s to a list of `b`s. 
 
 ```
-map :: (a => b) -> [a] => [b]
+map :: (a <-> b) -> [a] <-> [b]
 map fun     []   = []
 map fun (x : xs) =
   let x'  = fun x
@@ -169,13 +200,13 @@ Given that application of the function referenced in `fun` it is clear (by induc
 The next function we can look at is the lenght function, which returns the lenght of a list. Before starting an implementation, we actually are doing. The lenght of a list is one of several pieces of information that held in a list: other ones are the element values and the order of the elements. It is therefore obvious that we cannot make a function transforms a list of some type into its lenght. The approach that we will use here is instead that the lenght is a property of the list that will will extract, while keeping the list unchanged.
 
 ```
-length :: [a] -> {} => Nat
+length :: [a] -> {} <-> Nat
 ```
 
 The `length` function is therefore defined as a function that given a list containing element of any type, transforms no information (here represented by the empty tuple `{}`) into a `Nat`. It is from this obvious that the information contained if the `Nat` has been copied form the list. This type also comprises what we would call a _Bennett embedding_ of the normal lenght function.
 
 ```
-length :: [a] -> {} => Nat
+length :: [a] -> {} <-> Nat
 length []       {} = Z
 length (x : xs) {} =
   let  s = length xs {}
@@ -187,7 +218,7 @@ Based on this type, we have an implementation of `length` that closely resembles
 
 
 ```
-scanl :: (a -> b => a) -> a -> [b] => [a]
+scanl :: (a -> b <-> a) -> a -> [b] <-> [a]
 scanl fun i []     = []
 scanl fun i (x:xs) =
   let x' = fun i x
@@ -197,7 +228,7 @@ scanl fun i (x:xs) =
 ```
 
 ```
-foldl :: (b -> a => a) -> [b] -> a => a
+foldl :: (b -> a <-> a) -> [b] -> a <-> a
 foldl fun []     a = a
 foldl fun (x:xs) a =
   let a' = fun x a
@@ -206,7 +237,7 @@ foldl fun (x:xs) a =
 ```
 
 ```
-foldr :: (b -> a => a) -> [b] -> a => a
+foldr :: (b -> a <-> a) -> [b] -> a <-> a
 foldr fun []     a = a
 foldr fun (x:xs) a =
   let a'  = foldr fun xs a
@@ -215,7 +246,7 @@ foldr fun (x:xs) a =
 ```
 
 ```
-reverse :: [a] => [a]
+reverse :: [a] <-> [a]
 reverse xs =
   let  xs_s = length xs {}
        {[], ys} = move xs_s {xs, []}
@@ -223,7 +254,7 @@ reverse xs =
   in   ys
   end
 
-move :: Nat -> ([a], [a]) => ([a], [a])
+move :: Nat -> ([a], [a]) <-> ([a], [a])
 move Z    {   x  , l} = {x, l}
 move S(s) {(x:xs), l} =
   let  xs' = move s {xs, (x:l)}
@@ -232,3 +263,11 @@ move S(s) {(x:xs), l} =
 ```
 
 ## Semantics
+
+
+# References
+
+[1] RFUN 1
+
+[2] IFL paper
+

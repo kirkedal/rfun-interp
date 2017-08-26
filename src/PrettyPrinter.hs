@@ -1,4 +1,4 @@
-module PrettyPrinter (ppProgram, ppBType, ppLExpr, ppIdent, ppIdentFile, ppIdentPos, ppIdentLine, ppValue) where
+module PrettyPrinter (ppProgram, ppTypeSig, ppBType, ppLExpr, ppIdent, ppIdentFile, ppIdentPos, ppIdentLine, ppValue) where
 
 import Ast
 
@@ -13,6 +13,9 @@ ppProgram = render . formatProgram
 
 ppBType :: BType -> String
 ppBType = render . formatBType
+
+ppTypeSig :: TypeSig -> String
+ppTypeSig = render . formatTypeSig
 
 ppLExpr :: LExpr -> String
 ppLExpr = render . formatLExpr

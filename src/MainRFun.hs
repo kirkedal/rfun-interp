@@ -22,7 +22,7 @@ main =
              Left err  -> putStrLn "Run-time error:" >> (putStrLn $ err)
              Right res -> putStrLn $ ppValue res
       [filename] -> parseProgram filename >>= typecheckProgram >>= prettyPrintProgram
-      _ -> putStrLn "Wrong number of arguments.\nUsage:\n  \"rfun\" programfile startfunc startvalue*\nor to stop before interpretation:\n  \"rfun\" programfile "
+      _ -> putStrLn "Wrong number of arguments.\nUsage:\n  \"rfun\" programfile startfunc startvalue+\nor to stop before interpretation:\n  \"rfun\" programfile "
 
 typecheckProgram :: Program -> IO Program
 typecheckProgram p =
