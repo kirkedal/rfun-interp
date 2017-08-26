@@ -1,5 +1,16 @@
-
-
+---------------------------------------------------------------------------
+--
+-- Module      :  Interp
+-- Copyright   :  Michael Kirkedal Thomsen, 2017
+-- License     :  AllRightsReserved
+--
+-- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
+-- Stability   :  none?
+-- Portability :  ?
+--
+-- |Simple translation of RFun17 to RFun_core for interpretation
+--
+-----------------------------------------------------------------------------
 
 module Interp (interp) where
 

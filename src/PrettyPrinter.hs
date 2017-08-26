@@ -1,3 +1,17 @@
+---------------------------------------------------------------------------
+--
+-- Module      :  PrettyPrinter
+-- Copyright   :  Michael Kirkedal Thomsen, 2017
+-- License     :  AllRightsReserved
+--
+-- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
+-- Stability   :  none?
+-- Portability :  ?
+--
+-- |Pretty printer for RFun17
+--
+-----------------------------------------------------------------------------
+
 module PrettyPrinter (ppProgram, ppTypeSig, ppBType, ppLExpr, ppIdent, ppIdentFile, ppIdentPos, ppIdentLine, ppValue) where
 
 import Ast
@@ -74,7 +88,7 @@ formatTypeSig (TypeSig ancT leftT rightT) =
   (hcat $ map (\x -> formatBType x <> text " -> ") ancT) <> formatBType leftT <+> text "<->" <+> formatBType rightT
 
 formatBType :: BType -> Doc
-formatBType NatT           = text "Nat"
+-- formatBType NatT           = text "Nat"
 formatBType (DataT ident)  = formatIdent ident
 formatBType (ListT bType)  = brackets $ formatBType bType
 formatBType (ProdT bTypes) = parens $ commaSep formatBType bTypes

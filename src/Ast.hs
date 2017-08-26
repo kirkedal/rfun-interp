@@ -1,45 +1,23 @@
 -----------------------------------------------------------------------------
 --
 -- Module      :  Ast
--- Copyright   :  Michael Kirkedal Thomsen, 2013
+-- Copyright   :  Michael Kirkedal Thomsen, 2017
 -- License     :  AllRightsReserved
 --
 -- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
 -- Stability   :  None guaranteed?
 -- Portability :
 --
--- |Abstract syntax tree for RFun
+-- |Abstract syntax tree for RFun17
 --
 -- The language is based on, to which the are make references in the comments:
 --
--- Grammar:
--- q ::= d*                           (program)
--- d ::= f l =^= e                    (definition)
--- l ::= x                            (variable)
---     | c(l_1,...,l_n)               (constructor)
---     | |l|                          (duplication/equality)
--- e ::= l                            (left-expression)
---     | let l_out = f l_in in e      (let-expression)
---     | rlet l_in = f l_out in e     (rlet-expression)
---     | case l of {l_i -> e_i}+      (case-expression)
---
--- Syntax domains:
--- q ∈ Programs
--- d ∈ Definitions
--- f ∈ Functions
--- l ∈ Left-expressions
--- e ∈ Expressions
--- x ∈ Variables
--- c ∈ Constructors
---
--- Abstract syntax of the first-order functional language (n ≥ 0, m ≥ 1) The Language
 --
 -----------------------------------------------------------------------------
 
 module Ast where
 
--- import qualified Data.Map as M
-import Text.Megaparsec (SourcePos)
+import qualified Text.Megaparsec as P  -- (SourcePos, SourcePos(..), Pos(..))
 import qualified Data.Map as M
 
 -- data Module   = Module { moduleName    :: Ident
@@ -69,7 +47,7 @@ data Clause   = Clause { clauseIdent :: Ident
 data TypeSig  = TypeSig [BType] BType BType
               deriving (Eq, Show)
 
-data BType    = NatT | DataT Ident | ListT BType | ProdT [BType] | SumT [BType] | FunT TypeSig | VarT Ident | AnyT
+data BType    = DataT Ident | ListT BType | ProdT [BType] | SumT [BType] | FunT TypeSig | VarT Ident | AnyT
               deriving (Eq, Show)
 
 -- |An expression is
@@ -97,7 +75,7 @@ data LExprList = ListCons LExpr LExprList
 
 -- |Identifiers at simple Strings
 data Ident    = Ident { identifier :: String
-                      , sourcePos  :: SourcePos }
+                      , sourcePos  :: P.SourcePos }
               deriving (Eq, Show)
 
 -- |A value (p. 16) is defined as
@@ -111,8 +89,10 @@ data Value = IntV Integer
 
 
 
-
 type FuncEnv = M.Map String Func
 
 makeFunEnv :: Program -> FuncEnv
 makeFunEnv p = M.fromList $ map (\x -> ((identifier. funcName) x, x)) p
+
+makeIdent :: String -> Ident
+makeIdent s = Ident s (P.SourcePos "" (P.unsafePos 1) (P.unsafePos 1))

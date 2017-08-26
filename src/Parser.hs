@@ -1,3 +1,16 @@
+---------------------------------------------------------------------------
+--
+-- Module      :  Parser
+-- Copyright   :  Michael Kirkedal Thomsen, 2017
+-- License     :  AllRightsReserved
+--
+-- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
+-- Stability   :  none?
+-- Portability :  ?
+--
+-- |Parser for RFun17
+--
+-----------------------------------------------------------------------------
 
 module Parser (parseFromFile, parseFromValue, prettyParseError, ParserError) where
 
@@ -244,13 +257,12 @@ pLexprA = try app <|> try parLE <|> pLexpr  <?> "Left-expression"
 
 pValue :: Parser Value
 pValue = int <|> tuple <|> list <|> try funName <|> try constr <|> try constrp <|> try tuple <|> par <?>  "Value"
-
   where
     int    = do i <- integer
                 return $ IntV i
     tuple  = do vs <- parens $ pValue `sepBy` (symbol ",")
                 return $ TupleV vs
-    list   = do vs <- brackets $ pValue `sepBy1` (symbol ",")
+    list   = do vs <- brackets $ pValue `sepBy` (symbol ",")
                 return $ ListV vs
     constr = do c <- pConstructor
                 return $ ConstrV (identifier c) []

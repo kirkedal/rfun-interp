@@ -1,3 +1,17 @@
+---------------------------------------------------------------------------
+--
+-- Module      :  TypeCheck
+-- Copyright   :  Michael Kirkedal Thomsen, 2017
+-- License     :  AllRightsReserved
+--
+-- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
+-- Stability   :  none?
+-- Portability :  ?
+--
+-- |Main execution of RFun17 interpreter
+--
+-----------------------------------------------------------------------------
+
 module Main (main) where
 
 import Parser

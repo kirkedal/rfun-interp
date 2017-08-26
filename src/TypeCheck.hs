@@ -1,3 +1,17 @@
+---------------------------------------------------------------------------
+--
+-- Module      :  TypeCheck
+-- Copyright   :  Michael Kirkedal Thomsen, 2017
+-- License     :  AllRightsReserved
+--
+-- Maintainer  :  Michael Kirkedal Thomsen <kirkedal@acm.org>
+-- Stability   :  none?
+-- Portability :  ?
+--
+-- |Simple type check for RFun17
+--
+-----------------------------------------------------------------------------
+
 module TypeCheck (typecheck) where
 
 import Ast
@@ -131,7 +145,7 @@ bTypeUnification  _          _         = Nothing
 
 getLExprType :: LExpr -> Maybe BType
 getLExprType (Var _) = Just AnyT -- Variable can be any type
-getLExprType (Int _) = Just NatT
+getLExprType (Int _) = Just $ DataT $ makeIdent "Nat"
 -- getLExprType (Constr i []) | (identifier i == "Z") = Just NatT
 -- getLExprType (Constr i [lExpr]) | (identifier i == "S") = (getLExprType lExpr) >>= (bTypeUnification NatT)
 getLExprType (Constr _ _) = Just AnyT -- I need function Env
@@ -279,7 +293,7 @@ checkExpr (CaseOf lExpr cases) btype = -- [(LExpr, Guard, Expr)]      -- ^ Case-
 checkLExpr :: (Ident -> BType -> TC BType) -> LExpr -> BType -> TC BType
 checkLExpr addFun (Var ident) btype = addFun ident btype  -- Variable can be any type
 -- Integers
-checkLExpr _ (Int _) btype | bTypeUnifies btype NatT = return NatT
+checkLExpr _ (Int _) btype | bTypeUnifies btype (DataT $ makeIdent "Nat") = return $ DataT $ makeIdent "Nat"
 checkLExpr _ lExpr@(Int _) t  = throwError $ errorLExprUnification lExpr t
 -- checkLExpr _ (Constr i []) btype | (identifier i == "Z"), bTypeUnifies btype NatT = return NatT
 -- checkLExpr addFun (Constr i [lExpr]) btype | (identifier i == "S") = checkLExpr addFun lExpr btype
