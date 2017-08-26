@@ -1,0 +1,114 @@
+-------------------------------------------------------------------------------
+-- Implementation of Reversible Turing machine in RFUN
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ** For transition table
+-------------------------------------------------------------------------------
+
+dupEq v =^= |v|
+dup   v =^= |{v}|
+
+lookupH {e, ({l,d}:ls)} =^=
+    case |{e,l}| of
+    	{e'} -> 
+			{{e', (Read:ls)}, d}
+		{e',l'} ->
+			let {{e', ls'}, r} = lookup {e',ls}
+			in  {{e', ({l',d}:ls')}, r}
+
+lookup {e, ls} =^=
+	let  {i', o}  = lookupH {e, ls}
+	     {o',o''} = dup o
+	rlet {i',o'}  = lookupH {e', ls'}
+	in   {e', o'', ls'}
+
+
+readbackH {e, ({l,d}:ls)} =^=
+    case |{e,d}| of
+    	{e'} -> 
+			{{e', (Read:ls)}, l}
+		{e',d'} ->
+			let {{e', ls'}, r} = lookup {e',ls}
+			in  {{e', ({l,d'}:ls')}, r}
+
+readback {e, d, ls} =^=
+	let  {i', o} = readbackH {e, ls}
+	rlet {o , d} = dup o'
+	     {i',o'} = lookupH {e', ls'}
+	in   {e', ls'}
+
+-------------------------------------------------------------------------------
+-- ** For tape operations
+-------------------------------------------------------------------------------
+
+moveLeft {[],       Blank, []     } =^= {[]  , Blank, []}
+moveLeft {[],       head,  (right)} =^= {[],   Blank, (head:right)}
+moveLeft {(l:left), Blank, []     } =^= {left, l,     []}
+moveLeft {(l:left), head,  (right)} =^= {left, l,     (head:right)} 
+
+move {Left, tape} =^=
+    let  tape = moveLeft tape'
+    in   {Left, tape'}
+move {Right, tape} =^=
+    rlet tape = moveLeft tape'
+    in   {Right, tape'}
+move {Stay,  tape} =^=
+		{Stay, tape}
+
+-------------------------------------------------------------------------------
+-- ** For tape operations
+-------------------------------------------------------------------------------
+
+
+-- Transition table is a list of lists
+-- q1 	s1 	s2 	q2
+-- 1		b 	b 	2 
+-- 2		/		+		3 
+-- 3		0		1		4 
+-- 3		1		0		2
+-- 4		/		-		5
+-- 5		b 	b 	6
+-- 5		0		0		4 
+
+binenc =  [{1, Update({Blank, 2)},
+					 {2, Move(Right, 3)}, -- 2
+					 {3, Update([{0,{1,4}},{1,{0,2}}])}, --3
+					 {4, Move(Left, 5)}, -- 4
+					 {5, Update([{0,{1,4}},{1,{0,2}}])} --5
+					]
+
+
+eval {state, tape, {move,}}  =^=
+	  let  {s', operation, t'} = lookup {state, transitions}
+
+perform {tape, Move(dir, newState)} =^=
+		let {dir', tape'} = move {dir, tape}
+		    {s', s''} = dup newState
+		in  {tape', Move(dir', s'), s''}
+perform {{left, head, right}, Update(ls)} =^=
+		let {head', {newSymb, newState}, ls'} = lookup {head, ls}
+
+updateHead {from, to, {left, head, right}} = 
+	rlet from' = dup {from, head}
+	let  {to', head'} = dup to
+	in   {from', to', {left, head', right}}
+
+procedure inst(int q,int pc,
+stack right,stack left,
+int q1,int s1,int s2,int q2) if q=q1[pc] then
+if s=s1[pc] then
+q += q2[pc]-q1[pc] s += s2[pc]-s1[pc]
+else
+if s1[pc]=SLASH then
+q += q2[pc]-q1[pc] if s2[pc]=RIGHT then
+// Move rule:
+// set q to q2[pc]
+call pushtape(s,left)
+uncall pushtape(s,right) else
+// push s on left // pop right to s
+uncall pushtape(s,left) fi s2[pc]=LEFT
+       fi s2[pc]=RIGHT
+     fi s1[pc]=SLASH
+   fi s=s2[pc]
+ fi q=q2[pc]

@@ -5,6 +5,13 @@
 -- swap :: a * b -> b * a
 swap {x,y} =^= {y,x}
 
+flip {fun, val} =^= 
+	let val' = swap val
+	    upd  = fun val'
+	    upd' = swap upd
+	in  {fun, upd'}
+
+
 id x =^= x
 
 -- It is possible to diverge
@@ -13,9 +20,17 @@ rec x =^=
 		in x'
 
 -- |Implemententation of |.| as a function
-dupEq v =^=
-		case |v| of
-				v' -> v'
+-- dupEq v =^=
+-- 		case |v| of
+				-- v' -> v'
+
+dupEq v =^= |v|
+
+dup v =^= |{v}|
+
+eq v =^=
+	rlet v = dup v'
+	in   v'
 
 ---------------------------------------------------------------
 ---- ARITHMETIC
@@ -46,20 +61,35 @@ odd S(S(x)) =^=
 		let x' = odd x
 		in  S(S(x'))
 
-inc Z =^= S(Z)
-inc S(np) =^= 
-		let npp = inc np 
+incT Z =^= S(Z)
+incT S(np) =^= 
+		let npp = incT np 
 		in  S(npp)
 
+inc s =^= S(s)
+
 --plus :: Nat -> Nat <-> Nat
-plus {x,  Z } =^= |{x}|
-plus {x,S(u)} =^= 
-    let {xp,up} = plus {x,u} 
-    in  {xp, S(up)}
+plus {  Z , y} =^= |{y}|
+plus {S(x), y} =^= 
+    let {xp,yp} = plus {x,y} 
+    in  {S(xp), yp}
+
+plusS {  x , y} =^= 
+	let {y', x'} = plus {y,x}
+	in  {x', y'}
+
+-- Ikke peano safe plusP med Z
+plusP {Z,   Z}    =^= {Z, Z}
+plusP {S(x),   Z} =^= 
+	  let  {x',Z} = plusP {x, Z}
+	  in   {S(x'),Z}
+plusP {x,S(y)} =^= 
+    let {xp,yp} = plusP {x,y} 
+    in  {S(xp), S(yp)}
 
 minus xy =^=
-		rlet xy = plus xy'
-		in   xy'
+		rlet xy = plus xyp
+		in   xyp
 
 -- fib :: N -> N * N
 fib Z    =^= {S(Z),S(Z)}
@@ -67,17 +97,76 @@ fib S(m) =^=
 		let {x,y} = fib m 
 		in plus {y,x}
 
-mult {x,     Z  } =^= {x, Z}
-mult {x,   S(Z) } =^= |{x}|
-mult {x, S(S(y))} =^=
-		let {x', m} = mult {x, S(y)}
-		in  plus {x', m}
+mult {x,   Z } =^= {x, Z}
+--mult {x,   S(Z) } =^= |{x}|
+mult {x, S(y)} =^=
+		let {xp, yp} = mult {x, y}
+		    {ypp, xpp} = plusP {yp, xp}
+		in  {xpp, ypp}
+
+mult2 {x, y} =^=
+	let {y', x'} = mult {y,x}
+	in  {x', y'}
+
+div {x, S(y)} =^=
+    rlet {S(y), x} = mult {yp, xp}
+    in   {xp, yp}
+
+-- fact Z =^= Z
+-- fact S(n) =^=
+-- 		let 
+
+---------------------------------------------------------------
+---- BINARY ARITHMETIC
+---------------------------------------------------------------
+
+--data BOOL = T | F
+--data N = [Bool]
+
+xor {T, F} =^= {T, T}
+xor {T, T} =^= {T, F}
+xor {F, F} =^= {F, F}
+xor {F, T} =^= {F, T}
+
+tof {T, T, T} =^= {T, T, F}
+tof {T, T, F} =^= {T, T, T}
+tof {T, F, T} =^= {T, F, T}
+tof {T, F, F} =^= {T, F, F}
+tof {F, T, T} =^= {F, T, T}
+tof {F, T, F} =^= {F, T, F}
+tof {F, F, T} =^= {F, F, T}
+tof {F, F, F} =^= {F, F, F}
+
+maj {T, T, T} =^= {{T, T}, T}
+maj {T, T, F} =^= {{T, F}, T}
+maj {T, F, T} =^= {{F, T}, T}
+maj {T, F, F} =^= {{T, T}, F}
+maj {F, T, T} =^= {{F, F}, T}
+maj {F, T, F} =^= {{T, F}, F}
+maj {F, F, T} =^= {{F, T}, F}
+maj {F, F, F} =^= {{F, F}, F}
+
+sum {a, b ,c} =^= 
+	let {a', c'}  = xor {a, c}
+	    {b', c''} = xor {b, c'}
+	in  {a', b', c''}
+
+bAdd {a, b} =^= 
+	let {a', b', F} = bAddh {a, b, F}
+	in  {a', b'}
+
+bAddh {[], [], c}     =^= {[], [], c}
+bAddh {(a:as), (b:bs), c} =^= 
+	let  {tmp, c'} = maj {a, b, c}
+	     {as', ss, c''} = bAddh {as, bs, c'}
+	rlet {tmp, c''} = maj {a', b', c'''}
+	let  {a'', c'''', s} = sum {a', c''', b'}
+	in   {(a'':as'), (s:ss), c''''}
 
 
-divide xy =^=
-		rlet xy = mult xy'
-		in   xy'
-
+---------------------------------------------------------------
+---- GENERAL ARITHMETIC
+---------------------------------------------------------------
 
 -- This square root function is very simple and basically iterates 
 -- over all possible integers. Function will fail if the input 
@@ -140,60 +229,98 @@ zip {(x:xs),(y:ys)} =^=
 -- |Unzip
 unzip v =^= rlet v = zip v' in v'
 
--- scanr applying function given in fun
-scanr {fun, i, []}     =^= {fun, i, []}
-scanr {fun, i, (x:xs)} =^= 
-	  let {i', x'} = fun {i, x}
-	      {fun', x'', l} = scanr {fun, x', xs}
-	  in  {fun', i', (x'' : l)}
+
+-- scan1 is basic functions
+scanl1 {fun, []}  =^= {fun, []}
+scanl1 {fun, [x]} =^= {fun, [x]}
+scanl1 {fun, (x:y:xs)} =^= 
+    let {x', y'}    = fun {x, y}
+        {fun', (y'':xs')} = scanl1 {fun, (y':xs)}
+    in  {fun', (x':y'':xs')}
 
 scanr1 {fun, []} =^= {fun, []}
-scanr1 {fun, (x:xs)} =^= 
-	let {fun', x', xs'} = scanr {fun,x,xs}
-	in  {fun', (x':xs')}
+scanr1 {fun, [x]} =^= {fun, [x]}
+scanr1 {fun, (x:y:xs)} =^= 
+	let {fun', (y':xs')} = scanr1 {fun, (y:xs)}
+			{y'', x'} = fun' {y', x}
+	in  {fun', (x':y'':xs')}
+
+scanr12 {fun, ls} =^= 
+	let ls' = reverse ls
+		  {fun', ls''} = scanl1 {fun, ls'}
+		  ls''' = reverse ls''
+	in {fun', ls'''}
+
+sumInc {x,y} =^=
+	let {x',y'} = plus {x,y}
+	in  {x',S(y')}
+
+sumInc2 {x,y} =^=
+	let {y',x'} = plus {y,x}
+	in  {S(x'),y'}
+
+-- foldr applying function given in fun
+--   this is actually more similar to mapAccumL
+mapAccumL {fun,x,[]} =^= {fun,x,[]}
+mapAccumL {fun,x,(y:ys)} =^= 
+	let {x',y'} = fun {x,y}
+	    {fun', x'',ys'} = mapAccumL {fun, x',ys}
+	in  {fun', x'', (y':ys')}
+
+
+-- scanr applying function given in fun
+scanl {fun, i, []}     =^= {fun, i, []}
+scanl {fun, i, (x:xs)} =^= 
+	  let {i', x'} = fun {i, x}
+	      {fun', x'', l} = scanl {fun, x', xs}
+	  in  {fun', i', (x'' : l)}
 
 -- scanl applying function given in fun
-scanl {fun, i, []}      =^= {fun, i, []}
-scanl {fun, i, [x]}     =^= 
+scanr {fun, i, []}      =^= {fun, i, []}
+scanr {fun, i, [x]}     =^= 
 		let {i', x'} = fun {i, x}
 		in  {fun, i', [x']}
-scanl {fun, i, (x : z : xs)} =^= 
-		let {fun', i', (y:ys)} = scanl {fun, i, (z : xs)}
+scanr {fun, i, (x : z : xs)} =^= 
+		let {fun', i', (y:ys)} = scanr {fun, i, (z : xs)}
 		    {y', x'} = fun' {y, x}
 		in  {fun', i', (x' : y' : ys)}
 
-scanl1 {fun, []} =^= {fun, []}
-scanl1 {fun, (x:xs)} =^= 
-	let ys = reverse (x:xs)
-	in  scanr1 {fun,ys}
 
 -- foldr applying function given in fun
---   this is actually more similar to mapAccumR
-foldr {fun,x,[]} =^= {fun,x,[]}
-foldr {fun,x,(y:ys)} =^= 
+--   this is actually more similar to mapAccumL
+foldl {fun,x,[]} =^= {fun,x,[]}
+foldl {fun,x,(y:ys)} =^= 
 	let {y',x'} = fun {y,x}
-	    {fun', x'',ys'} = foldr {fun, x',ys}
+	    {fun', x'',ys'} = foldl {fun, x',ys}
 	in  {fun', x'', (y':ys')}
 
-foldr1 {fun, (x:xs)} =^=
+flip2 {{fun, x}, y} =^= 
+	let {y', x'}  = fun {y, x}
+	in  {{fun, y'}, x'}
+
+foldl2 {flipFun, fun, x, ys} =^=
+	let {flipFun', {fun',x'}, ys'} = scanl {flipFun, {fun, x}, ys}
+	in  {flipFun', fun', x', ys'}
+
+foldl1 {fun, (x:xs)} =^=
 	let {x',x''} = dupEq {x} 
-	    {fun', y, xs'} = foldr {fun, x',xs}
+	    {fun', y, xs'} = foldl {fun, x',xs}
 	in  {fun', y,(x'':xs')}
 
 
 -- foldl applying function given in fun
 --   this is actually more similar to mapAccumL
-foldl {fun,x,[]} =^= {fun,x,[]}
-foldl {fun,x,(y:ys)} =^= 
-	let {fun',x',ys'} = foldl {fun,x,ys}
+foldr {fun,x,[]} =^= {fun,x,[]}
+foldr {fun,x,(y:ys)} =^= 
+	let {fun',x',ys'} = foldr {fun,x,ys}
       {y',x''} = fun' {y,x'}
 	in  {fun', x'', (y':ys')}
 
-foldl1 {fun,[x]} =^= 
+foldr1 {fun,[x]} =^= 
 	let {x',x''} = dupEq {x}
 	in  {fun,x',[x'']}
-foldl1 {fun,(y:ys)} =^= 
-	let {fun',x,ys'} = foldl1 {fun, ys}
+foldr1 {fun,(y:ys)} =^= 
+	let {fun',x,ys'} = foldr1 {fun, ys}
       {y',x'} = fun' {y,x}
 	in  {fun', x', (y':ys')}
 
@@ -205,6 +332,13 @@ map {fun, (x : xs)} =^=
 		    {fun', xs'} = map {fun, xs}
 		in  {fun', (x' : xs')}
 
+-- Simple reverse with last
+rev [] =^= []
+rev (x:xs) =^=
+	  let  xs' = rev xs
+	  rlet {xs',x} = last xs''
+	  in xs''
+
 -- Reverse of a list
 reverse xs =^= 
 		let  {xs_s, xs'}     = length xs
@@ -214,8 +348,8 @@ reverse xs =^=
 
 -- This function in only partial
 --  helper to reverse
-move {      x , l,   Z } =^= {x, l, Z}
-move {(x : xs), l, S(s)} =^= 
+move {    x , l,   Z } =^= {x, l, Z}
+move {(x:xs), l, S(s)} =^= 
 		let {ys, ls, s'} = move {xs,(x:l),s} 
 		in  {ys, ls, S(s')}
 
@@ -346,7 +480,7 @@ interleave {x,(y:ys)} =^=
 			(z'':zs') = consToLists {y,(z':z'':zs)}
   in  ((x':z''):zs')
 
--- Adds x to the front of all lists in ys
+-- Adds x to the front of all lists in y
 consToLists {x,[y]} =^= [(x:y)]
 consToLists {x, (y:ys)} =^=
 	let {x',x''} = dupEq {x}

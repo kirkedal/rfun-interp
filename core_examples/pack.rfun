@@ -1,0 +1,13 @@
+pack s =^=
+	case s of
+		[] -> []
+		(c1 : r) -> 
+			let s = pack r in
+				case s of
+					[] -> ({c1, S(Z)} : [])
+					(h : t) ->
+						case h of
+							{c2, n} ->
+								case |{c1,c2}| of
+									{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
+									{c} -> ({c, S(n)} : t)

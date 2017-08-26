@@ -1,0 +1,266 @@
+---------------------------------------------------------------
+---- LIST TRANSFORMATION
+---------------------------------------------------------------
+
+-- module List (
+-- 	zip, unzip, 
+-- 	scanr, scanr1, scanl, scanl1,
+-- 	foldr, foldr1, foldl, foldl1
+-- 	map,
+-- 	reverse,
+-- 	splitAt, hdtl, last,
+-- 	length,
+-- 	append, unAppend,
+-- 	replicate, intersperse, interleave, transpose, subsequences,permutations,
+-- 	group, tails, inits
+-- 	) where 
+
+-- |Zip
+zip {[],[]} =^= []
+zip {(x:xs),(y:ys)} =^=
+	let zs = zip {xs, ys}
+	in  ({x,y}:zs)
+
+-- |Unzip
+unzip v =^= rlet v = zip v' in v'
+
+-- scanr applying function given in fun
+scanr {fun, i, []}     =^= {fun, i, []}
+scanr {fun, i, (x:xs)} =^= 
+	  let {i', x'} = fun {i, x}
+	      {fun', x'', l} = scanr {fun, x', xs}
+	  in  {fun', i', (x'' : l)}
+
+scanr1 {fun, []} =^= {fun, []}
+scanr1 {fun, (x:xs)} =^= 
+	let {fun', x', xs'} = scanr {fun,x,xs}
+	in  {fun', (x':xs')}
+
+-- scanl applying function given in fun
+scanl {fun, i, []}      =^= {fun, i, []}
+scanl {fun, i, [x]}     =^= 
+		let {i', x'} = fun {i, x}
+		in  {fun, i', [x']}
+scanl {fun, i, (x : z : xs)} =^= 
+		let {fun', i', (y:ys)} = scanl {fun, i, (z : xs)}
+		    {y', x'} = fun' {y, x}
+		in  {fun', i', (x' : y' : ys)}
+
+scanl1 {fun, []} =^= {fun, []}
+scanl1 {fun, (x:xs)} =^= 
+	let ys = reverse (x:xs)
+	in  scanr1 {fun,ys}
+
+-- foldr applying function given in fun
+--   this is actually more similar to mapAccumR
+foldr {fun,x,[]} =^= {fun,x,[]}
+foldr {fun,x,(y:ys)} =^= 
+	let {y',x'} = fun {y,x}
+	    {fun', x'',ys'} = foldr {fun, x',ys}
+	in  {fun', x'', (y':ys')}
+
+foldr1 {fun, (x:xs)} =^=
+	let {x',x''} = dupEq {x} 
+	    {fun', y, xs'} = foldr {fun, x',xs}
+	in  {fun', y,(x'':xs')}
+
+
+-- foldl applying function given in fun
+--   this is actually more similar to mapAccumL
+foldl {fun,x,[]} =^= {fun,x,[]}
+foldl {fun,x,(y:ys)} =^= 
+	let {fun',x',ys'} = foldl {fun,x,ys}
+      {y',x''} = fun' {y,x'}
+	in  {fun', x'', (y':ys')}
+
+foldl1 {fun,[x]} =^= 
+	let {x',x''} = dupEq {x}
+	in  {fun,x',[x'']}
+foldl1 {fun,(y:ys)} =^= 
+	let {fun',x,ys'} = foldl1 {fun, ys}
+      {y',x'} = fun' {y,x}
+	in  {fun', x', (y':ys')}
+
+
+-- map applying the function given in fun
+map {fun,     []  } =^= {fun, []}
+map {fun, (x : xs)} =^= 
+		let x' = fun x
+		    {fun', xs'} = map {fun, xs}
+		in  {fun', (x' : xs')}
+
+-- Reverse of a list
+reverse xs =^= 
+		let  {xs_s, xs'}     = length xs
+		     {[], ys, xs_s'} = move {xs', [], xs_s} 
+		rlet {xs_s', ys}     = length ys'
+		in   ys'
+
+-- This function in only partial
+--  helper to reverse
+move {      x , l,   Z } =^= {x, l, Z}
+move {(x : xs), l, S(s)} =^= 
+		let {ys, ls, s'} = move {xs,(x:l),s} 
+		in  {ys, ls, S(s')}
+
+-- splitAt is identical to the Haskell version
+splitAt {  Z ,       l } =^= {[],l}
+splitAt {S(s), (l : ls)} =^=
+		let {l1, l2} = splitAt {s, ls}
+		in  {(l : l1), l2}
+
+-- Finds the head and tail
+hdtl (x:xs) =^= {x,xs}
+
+-- Finds the last elements and the rest of the list
+last ([x])  =^= {[],x}
+last (x:xs) =^= 
+	let {xs',l} = last xs
+	in  {(x:xs'),l} 
+
+
+-- If it is called reverse and the N is not equal
+--   to the length of the list, I will fail.
+length [] =^= {Z,[]}
+length (x : xs) =^=
+		let {l, xs'} = length xs
+		in  {S(l), (x : xs')}
+
+-- append function
+append {[],l}      =^= {[], l}
+append {(x : xs), l} =^=  
+		let {xs', l'} = append {xs, l}
+		    {x', x''} = dupEq {x}
+		in  {(x' : xs'), (x'' : l')} 
+
+-- The reverse of the append
+unAppend x =^=
+		rlet x = append x'
+		in x'
+
+-- Identical to Haskell replicate function
+replicate {S(Z),x} =^= [x]
+replicate {S(n),x} =^=
+	let {x',x''} = dupEq {x}
+	    xs = replicate {n,x'}
+	in  (x'':xs)
+
+-- Similar to Haskell intersperse function
+intersperse {x,[]}       =^= {x,[]}
+intersperse {x,[y]}      =^= {x,[y]}
+intersperse {x,(l:list)} =^= 
+	let {x',list'} = intersperse {x,list}
+	    {x'',xn} = dupEq {x'}
+	in  {x'',(l:xn:list')}
+
+-- Identical to Haskell transpose function
+transpose []     =^= []
+transpose (x:xs) =^=
+	let xs' = transpose xs
+	in  addToLists {x,xs'}
+
+-- Helper function for transpose
+--   Adds empty lists this second input is an empty list, e.g. addToLists {[1,2],[]} = [[1],[2]]
+addToLists {[],[]} =^= []
+addToLists {(x:xs),[]} =^=
+	let ys' = addToLists {xs, []}
+	in  (([x]):ys')
+addToLists {(x:xs),(y:ys)} =^=
+	let ys' = addToLists {xs, ys}
+	in  ((x:y):ys')
+
+-- Identical to Haskell subsequences function
+subsequences [] =^= [[]]
+subsequences (x:xs) =^=
+	let xs' = subsequences xs
+	in  duplicateAdd {x,xs'}
+
+-- Helper function for subsequences
+duplicateAdd {x,[y]} =^= 
+	let {y',y''} = dupEq {y}
+	in  [y',(x:y'')]
+duplicateAdd {x,(y:ys)} =^= 
+	let {x',x''} = dupEq {x}
+			ys' = duplicateAdd{x',ys}
+	    {y',y''} = dupEq {y}
+	in  (y':(x'':y''):ys')
+
+-- Divide a list into n lists of size m
+divideOf {S(Z),m,xs} =^=
+	rlet {m,xs} = length xs'
+	in   [xs']
+divideOf {S(n),m,xs} =^=
+	let {m',m''} = dupEq {m}
+			{x,xs'} = splitAt {m', xs}
+	    xs'' = divideOf {n,m'',xs'}
+	in  (x:xs'')
+
+-- Divide a list into lists of size m
+divideSize {m,xs} =^=
+	let  {len,xs'} = length xs
+	rlet {m,len} = mult {m',n}
+	in   divideOf {n,m',xs'}
+
+-- Finds all permutations of a list
+--   Does not give the same order as the Haskell version.
+permutations [] =^= []
+permutations [x] =^= [[x]]
+permutations (x:xs) =^=
+	let  ys = permutations xs
+	     ys' = perms {x,ys}
+	rlet ys' = divideSize {m,(y:ys'')}
+			 {m,y} = length y'
+	in (y':ys'')
+
+-- Helper function for permutations
+perms {x,[y]} =^= 
+	let z = interleave {x,y}
+	in [z]
+perms {x, (y:ys)} =^=
+	let {x',x''} = dupEq {x}
+	    zs = perms {x',ys}
+	    z = interleave {x'',y}
+	in  (z:zs)
+
+-- Adds x to all possible positions in ys
+interleave {x,[]} =^= [[x]]
+interleave {x,(y:ys)} =^= 
+	let (z:zs) = interleave {x,ys}
+			{(x':z'),z''} = dupEq {z}
+			(z'':zs') = consToLists {y,(z':z'':zs)}
+  in  ((x':z''):zs')
+
+-- Adds x to the front of all lists in ys
+consToLists {x,[y]} =^= [(x:y)]
+consToLists {x, (y:ys)} =^=
+	let {x',x''} = dupEq {x}
+	    ys' = consToLists {x',ys}
+	in  ((x'':y):ys')
+
+-- Identical to Haskell group function 
+--   and not far from the run-length encoding
+group [] =^= []
+group (x:xs) =^=
+	case group xs of
+		[] -> [[x]]
+		((y:ys):tail) -> 
+			case |{x,y}| of
+				{x'} ->
+					let {x'',y''} = dupEq {x'}
+					in  ((x'':y'':ys):tail)
+				{x',y'} -> ([x']:(y':ys):tail)
+
+-- Equal to the Haskell tails function
+tails [] =^= [[]]
+tails (x:xs) =^=
+	let {xs',xs''} = dupEq {xs}
+	    ys = tails xs'
+	in  ((x:xs''):ys)
+
+-- Equal to the Haskell inits function
+inits [] =^= [[]]
+inits (x:xs) =^=
+	let ys = inits xs
+			ys' = consToLists {x,ys}
+	in  ([]:ys')
+

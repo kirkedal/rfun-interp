@@ -1,0 +1,70 @@
+
+--data N = Z | S(n)
+
+inc Z =^= S(Z)
+inc S(np) =^= 
+		let npp = inc np 
+		in  S(npp)
+
+-- fib :: N -> N * N
+fib Z    =^= {S(Z),S(Z)}
+fib S(m) =^= 
+		let {x,y} = fib m 
+		in  let z = plus {y,x} 
+				in z
+
+-- swap :: a * b -> b * a
+swap {x,y} =^= {y,x}
+
+-- scanr :: N * [N] -> N * [N]
+scanr {i,[]}      =^= {i,[]}
+scanr {i, (x:xs)} =^= 
+  let {i', x'} = plus {i,x}
+  in  let {x'',l} = scanr {x', xs}
+      in  {i',(x'':l)}
+
+-- scanl :: N * [N] -> N * [N]
+scanl {i,[]}      =^= {i,[]}
+scanl {i,[x]}     =^= 
+	let {i', x'} = plus {i,x}
+	in {i', [x']}
+scanl {i, (x:z:xs)} =^= 
+	let {i', (y:ys)} = scanl {i,(z:xs)}
+	in  let {y',x'} = plus {y,x}
+	    in {i', (x':y':ys)}
+
+-- map :: [N] -> [N]
+map [] =^= []
+map (x:xs) =^= 
+	let x' = inc x
+	in  let xs' = map xs
+	    in (x':xs')
+
+-- map :: [N] -> [N]
+map2 {f,[]} =^= {f,[]}
+map2 {f,(x:xs)} =^= 
+	let x' = f x
+	in  let xs' = map xs
+	    in {f,(x':xs')}
+
+
+-- plus :: N * N -> N * N
+plus {x,Z} =^= |{x}|
+plus {x,S(u)} =^= 
+	let {xp,up} = plus {x,u} 
+	in  {xp, S(up)}
+
+-- pack :: Eq a => [a] -> [a * N]
+pack [] =^= []
+pack (c1 : r) =^=
+		let s = pack r in
+			case s of
+				[] -> ({c1, S(Z)} : [])
+				(h : t) ->
+					case h of
+						{c2, n} ->
+							case |{c1,c2}| of
+								{c1p, c2p} -> ({c1p, S(Z)} : ({c2p, n} : t))
+								{c} -> ({c, S(n)} : t)
+
+unpack s =^= rlet s = pack d in d

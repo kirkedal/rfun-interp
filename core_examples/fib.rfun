@@ -1,0 +1,9 @@
+fib Z    =^= {S(Z),S(Z)}
+fib S(m) =^= 
+		let {x,y} = fib m 
+		in plus {y,x}
+
+plus { x,   Z } =^= {x, Z}
+plus { x, S(y)} =^= 
+    let {x',y'} = plus {x,y} 
+    in  {S(x'), S(y')}

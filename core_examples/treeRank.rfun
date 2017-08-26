@@ -1,0 +1,15 @@
+
+plus :: Nat -> Nat <-> Nat
+plus Z    x = x
+plus S(y) x =
+  let x' = plus y x
+  in  S(x')
+  end
+
+mult :: Nat -> Nat <-> Nat
+mult x Z = Z
+--mult {x,   S(Z) } =^= |{x}|
+mult x S(y) =^=
+    let y' = mult x y
+    in  plus x y'
+    end

@@ -1,0 +1,434 @@
+-------------------------------------------------------------------------------
+-- ** Standard functions
+-------------------------------------------------------------------------------
+
+-- |Implemententation of |.| as a function
+dupEq v =^= 
+	case |v| of
+		v' -> v'
+
+-- |Zip
+zip {[],[]} =^= []
+zip {(x:xs),(y:ys)} =^=
+	let zs = zip {xs, ys}
+	in  ({x,y}:zs)
+
+-- |Unzip
+unzip v =^= rlet v = zip v' in v'
+
+-- |Addition
+--plus {x,  Z } =^= |{x}|
+--plus {x,S(u)} =^= 
+--    let {xp,up} = plus {x,u} 
+--    in  {xp, S(up)}
+
+plus {Z,y} =^= {Z,y}
+plus {S(x), y} =^=
+	let {x',y'} = plus {x,y}
+	in  {S(x'), S(y')} 
+
+
+-- |scanr specialized to plus
+scanrPlus {i, []}     =^= {i, []}
+scanrPlus {i, (x:xs)} =^= 
+	  let {i', x'} = plus {i, x}
+	      {x'', l} = scanrPlus {x', xs}
+	  in  {i', (x'' : l)}
+
+-------------------------------------------------------------------------------
+-- ** Substitutions and functions on these
+-------------------------------------------------------------------------------
+-- |A substitution is a list of integers to values
+-- |The list is ordered and implemented such that the difference (and not the 
+-- |absolute value) is saved.
+--| E.g., in [{1,A}, {1,B}] we have that lookup {1, ..} is A and lookup {2,..} is B
+
+
+-- Perhaps call then get/put
+-- lookup :: {N,[{N,a}]} -> {{N,a},[{N,a}]}
+lookup {Z, ({Z,v}:sub)} =^= {{Z,v},sub}
+lookup {S(a), ({Z,v}:sub)} =^= 
+	let {{a',r}, sub'} = lookup {S(a), sub}
+	in  {{a',r}, ({Z,v}:sub')}
+lookup {S(a), ({S(b),v}:sub)} =^= 
+	let {{a',r}, l} = lookup {a, ({b,v}:sub)} in
+	case l of
+		[] -> {{S(a'),r}, []}
+		({b',v}:sub') -> {{S(a'),r}, ({S(b'),v}:sub')}
+
+-- insert :: {{N,a},[{N,a}]} -> {N,[{N,a}]}
+insert v =^= rlet v = lookup v' in v'
+
+-- |This is actually scanr specialised to insert
+-- disUnion :: {[{N,a}],[{N,a}]} -> {[N],[{N,a}]}
+disUnion {sub1, sub2} =^= 
+	let  {x,v} = unzip sub1
+	     {0, xInc} = scanrPlus {0,x}
+	     sub1Inc = zip {xInc,v}
+			 {listInc, sub} = disUnionh {sub1Inc, sub2}
+  rlet {0 , listInc}  = scanrPlus {0, list} 
+	in  {list, sub}
+
+-- | Basically a scanr specialised to insert
+disUnionh {[],sub}  =^= {[], sub}
+disUnionh {(x:xs), sub} =^= 
+	let {xs', sub'} = disUnionh {xs, sub}
+			{x' , sub''}  = insert {x, sub'} 
+	in  {(x' : xs'), sub''}
+
+-- divide :: {[N],[{N,a}]} -> {[{N,a}],[{N,a}]}
+divide v =^= rlet v = disUnion v' in v'
+
+-- |Similar to lookup, but copies and inserts the found value again
+-- loopupFun :: {N,[{N,a}]} -> {{N,a},[{N,a}]}
+lookupFun {ident, funEnv} =^=
+	let {{ident', v}, funEnv'} = lookup {ident, funEnv}
+	    {v',v''} = dupEq {v}
+	    {ident'',funEnv''} = insert {{ident', v'}, funEnv'}
+	in  {ident'', v'', funEnv''}
+
+-------------------------------------------------------------------------------
+-- ** Finding variables
+-------------------------------------------------------------------------------
+
+-- |This function is similar to lookup, but without a value
+remove {Z, (Z:sub)} =^= {Z,sub}
+remove {S(a), (Z:sub)} =^= 
+	let {a', sub'} = remove {S(a), sub}
+	in  {a', (Z:sub')}
+remove {S(a), (S(b):sub)} =^= 
+	let {a', l} = remove {a, (b:sub)} in
+	case l of
+		[] -> {S(a'), []}
+		(b':sub') -> {S(a'), (S(b'):sub')}
+
+add v =^= rlet v = remove v' in v'
+
+-- |Find the variables in a give left-expression
+-- findvars :: {LExpr, [N]} -> {LExpr, [N]}
+findvars {Var(x),list} =^= 
+	let {x',list'} = add {x,list}
+	in  {Var(x'), list'}
+findvars  {DupEq(l), list} =^=
+	let {l',list'} = findvars {l,list}
+	in  {DupEq(l'), list'}
+-- The following to would be better implemented with a map function
+findvars {Constr(c,[]),list} =^= {Constr(c,[]),list}
+findvars {Constr(c,(v:vars)),list} =^= 
+	let {v', list'} = findvars {v,list}
+	    {Constr(c',vars'), list''} = findvars {Constr(c,vars), list'}
+  in  {Constr(c',(v':vars')), list''}
+
+-------------------------------------------------------------------------------
+-- ** The interpreter
+-------------------------------------------------------------------------------
+
+-- evalDupEq :: Value -> Value
+evalDupEq ConstrV(Tuple,[x,y]) =^= 
+	case |{x,y}| of
+		{x'} -> ConstrV(Tuple,[x'])
+		{x',y'} -> ConstrV(Tuple,[x',y'])
+evalDupEq ConstrV(Tuple,[x]) =^= 
+	let {x', x''} = dupEq {x}
+	in  ConstrV(Tuple,[x',x''])
+
+-- |evalRMatch have to be lifted to the "Either monad", as 
+-- | it is used to find minimum match. LExpr are always unchanged.
+-- evalRMatch :: {LExpr, Value} -> Either({LExpr,Value},{LExpr,Subst})
+evalRMatch {Var(x),value} =^= 
+	let {x',sub'} = insert {{x,value},[]}
+	in Right(Var(x'),sub')
+evalRMatch {Constr(c,[]),ConstrV(cV,[])} =^=
+	case |{c,cV}| of
+		{c'} -> Right(Constr(c',[]), [])
+		{c',cV'} -> Left(Constr(c',[]),ConstrV(cV',[]))
+evalRMatch {Constr(c,[]),ConstrV(cV,(v:varsV))} =^=
+	Left(Constr(c,[]),ConstrV(cV,(v:varsV)))
+evalRMatch {Constr(c,(v:vars)),ConstrV(cV,[])} =^=
+	Left(Constr(c,(v:vars)),ConstrV(cV,[]))
+evalRMatch {Constr(c,(v:vars)),ConstrV(cV,(vV:varsV))} =^=
+	let r1 = evalRMatch {v,vV}
+	    r2 = evalRMatch {Constr(c,vars),ConstrV(cV,varsV)}
+	in case {r1,r2} of
+			{Right(v',  sub'), Right(Constr(c',vars'), sub'')} ->
+				let  {l,sub} = disUnion {sub',sub''}
+				rlet {v',l} = findvars {v'',[]}
+				in   Right(Constr(c',(v'':vars')), sub)
+	  	{r1',r2'} ->
+				rlet r1' = evalRMatch {v', vV'}
+						 r2' = evalRMatch {Constr(c',vars'),ConstrV(cV',varsV')}
+				in   Left(Constr(c',(v':vars')), ConstrV(cV',(vV':varsV')))
+evalRMatch {DupEq(l), value} =^=
+	let value' = evalDupEq value
+	in case evalRMatch {l, value'} of
+			Right(l',sub') -> Right(DupEq(l'), sub')
+			Left(l',value'') ->
+				rlet value'' = evalDupEq value'''
+				in Left(DupEq(l'),value''')
+
+-- |Helper function that evaluates a function.
+-- |All inputs are unchanged expect the Subst -> Value
+-- evalFun :: {FunEnv, Ident, LExpr, Subst} -> {FunEnv, Ident, LExpr, Value}
+evalFun {funEnv, ident, lexpr, sub} =^=
+	let  {ident', {funL, funE}, funEnv'} = lookupFun {ident, funEnv}
+	     {LeftE(lexpr'), funEnv'', v'} = evalExp {LeftE(lexpr), funEnv', sub}
+	     Right(funL', sub_f) = evalRMatch {funL, v'}
+	     {funE', funEnv''', value} = evalExp {funE, funEnv'', sub_f}
+	rlet {ident', {funL', funE'}, funEnv'''} = lookupFun {ident'', funEnv''''}
+	in   {funEnv'''', ident'', lexpr', value}
+
+-- |Evaluation of expressions. 
+-- |All inputs are unchanged expect the Subst -> Value
+-- evalExp :: {Expr, FunEnv, Subst} -> {Expr, FunEnv, Value}
+evalExp {LeftE(l), funEnv, sub} =^=
+	rlet Right(l, sub) = evalRMatch {l', value}
+	in   {LeftE(l'), funEnv, value}
+evalExp {LetIn(lout, ident, lin, expr), funEnv, sub} =^=
+	let  {lin', v_lin} = findvars {lin,[]}
+	     {sub_in,sub_e} = divide {v_lin, sub}
+	     {funEnv', ident', lin'', vout} = evalFun {funEnv, ident, lin', sub_in}
+	     Right(lout', sub_out) = evalRMatch {lout, vout}
+	     {v_lout, sub_ef} = disUnion {sub_out, sub_e}
+	rlet {lout', v_lout} = findvars {lout'',[]}
+	let  {expr', funEnv'', v} = evalExp {expr, funEnv', sub_ef}
+	in   {LetIn(lout'', ident', lin'', expr'), funEnv'', v}
+evalExp {RLetIn(lin, ident, lout, expr), funEnv, sub} =^=
+	--rlet {LetIn(lin, ident, lout, expr), funEnv, sub} = evalExp {LetIn(lin', ident', lout', expr'), funEnv', value}
+	let  {lin', v_lin} = findvars {lin,[]}
+	     {sub_in,sub_e} = divide {v_lin, sub}
+	rlet Right(lin', sub_in) = evalRMatch {lin'', vin}
+	     {funEnv, ident, lout, vin} = evalFun {funEnv', ident', lout', sub_out}
+	let  {v_lout, sub_ef} = disUnion {sub_out, sub_e}
+	rlet {lout', v_lout} = findvars {lout'',[]}
+	let  {expr', funEnv'', v} = evalExp {expr, funEnv', sub_ef}
+	in   {RLetIn(lin'', ident', lout'', expr'), funEnv'', v}
+	--in   {RLetIn(lin', ident', lout', expr'), funEnv', value}
+evalExp {CaseOf(lExpr, cases), funEnv, sub} =^=
+	let  {lExpr', v_lExpr} = findvars {lExpr,[]}
+	     {sub_l, sub_t} = divide {v_lExpr, sub}
+	     {LeftE(lExpr''), funEnv', vp} = evalExp {LeftE(lExpr'), funEnv, sub_l}    
+	     {i, {cLExpr,cExpr}, cases', sub_j} = checkCases {cases, vp}
+	     {v_sub_j,sub_jt} = disUnion {sub_j, sub_t}
+	rlet {cLExpr, v_sub_j} = findvars {cLExpr',[]}
+	let  {cExpr', funEnv'', value} = evalExp {cExpr, funEnv', sub_jt}
+	rlet {i,{cLExpr',cExpr'}, cases', value} = checkLeaves {cases'', value'}
+	in   {CaseOf(lExpr'', cases''), funEnv'', value'}
+
+-- | Finds the case (and index) that matches a value and evaluates this to a substitution
+-- checkCases :: {[{LExpr, Expr}], Value} -> {Int, {LExpr, Expr}, [{LExpr, Expr}], Subst}
+checkCases {({lExpr,expr}:cases), value} =^=
+	case evalRMatch {lExpr, value} of
+		Right(lExpr', sub) -> 
+			let {le1,le2} = dupEq {{lExpr',expr}}
+			in  {Z, le1, (le2:cases), sub}
+		Left(lExpr', value') -> 
+			let {n, le, cases', sub} = checkCases{cases, value'}
+			in {S(n), le, ({lExpr',expr}:cases'), sub}
+
+-- | Similar to checkCases, but for leaves of a case instead of case-matches.
+-- checkLeaces :: {[{LExpr, Expr}], Value} -> {Int, {LExpr, Expr}, [{LExpr, Expr}], Value}
+checkLeaves{({lExpr,expr}:cases), value} =^= 
+	case checkLeavesOf {expr, value} of
+		{Right(expr'), value'} ->
+			let {le1,le2} = dupEq {{lExpr,expr'}}
+			in  {Z, le1, (le2:cases), value'}
+		{Left(expr'), value'} ->
+			let {n, le, cases', value''} = checkLeaves {cases, value'}
+			in  {S(n), le, ({lExpr,expr'}:cases'), value''}
+
+-- | Checks if any leaves of an expression matches a given value.
+-- checkLeacesOf :: {Expr, Value} -> {Either(Expr, Expr), Value}
+checkLeavesOf {LeftE(lExpr), value} =^= 
+	case evalRMatch {lExpr, value} of
+		Right(lExpr', sub) -> 
+			rlet Right(lExpr', sub) = evalRMatch {lExpr'', value'}
+			in   {Right(LeftE(lExpr'')), value'}
+		Left(lExpr', value') -> {Left(LeftE(lExpr')), value'}
+checkLeavesOf {LetIn(lout, ident, lin, expr), value} =^=
+	case checkLeavesOf {expr, value} of
+		{Right(expr'), value'} -> {Right(LetIn(lout, ident, lin, expr')), value'}
+		{Left(expr'),  value'} -> {Left(LetIn(lout, ident, lin, expr')) , value'}
+checkLeavesOf {RLetIn(lout, ident, lin, expr), value} =^=
+	case checkLeavesOf {expr, value} of
+		{Right(expr'), value'} -> {Right(RLetIn(lout, ident, lin, expr')), value'}
+		{Left(expr') , value'} -> {Left(RLetIn(lout, ident, lin, expr')) , value'}
+checkLeavesOf {CaseOf(lExpr, []), value} =^=
+	{Left(CaseOf(lExpr, [])), value}
+checkLeavesOf {CaseOf(lExpr, ({clExpr,cexpr}:cases)), value} =^=
+	let {r1, value'}  = checkLeavesOf {cexpr, value}
+	    {r2, value''} = checkLeavesOf {CaseOf(lExpr, cases), value'}
+	in  case {r1, r2} of 
+			{Left(cexpr'), Left(CaseOf(lExpr', cases'))}  -> 
+				{Left(CaseOf(lExpr', ({clExpr,cexpr'}:cases'))), value''}
+			{r1',r2'} ->
+				rlet {r2', value''} = checkLeavesOf {CaseOf(lExpr', cases'), value'''}
+						 {r1', value'''}  = checkLeavesOf {cexpr', value''''}
+				in {Right(CaseOf(lExpr', ({clExpr,cexpr'}:cases'))), value''''}
+
+-- | The main evaluation function.
+-- | Evaluates a given function name in a function environment with a given value
+-- | to some output value. function name and environment are unchanged.
+-- eval :: {Ident, FunEnv, Value} -> {FunEnv, Ident, Value}
+eval {funEnv, ident, value_i} =^=
+	let  {ident', {funL, funE}, funEnv'} = lookupFun {ident, funEnv}
+       Right(funL', sub_f) = evalRMatch {funL, value_i}
+	     {funE', funEnv'', value_o} = evalExp {funE, funEnv', sub_f}
+	rlet {ident', {funL', funE'}, funEnv''} = lookupFun {ident'', funEnv'''}
+	in   {funEnv''', ident'', value_o}
+
+
+
+
+-------------------------------------------------------------------------------
+-- ** Testing
+-------------------------------------------------------------------------------
+
+--1 as ConstrV(S, [ConstrV(Z,[])])
+testInc input =^=
+	let  {ident, funEnv} = inc 1
+			 value = fromValue input
+--			 {funEnv', ident', value'} = eval {ident, funEnv, value}
+	rlet {funEnv, ident, value} = eval {funEnv', ident', value'}
+	rlet {ident', funEnv'} = inc 1
+	     value' = fromValue output
+	in output
+
+--inc Z =^= S(Z)
+--inc S(np) =^= 
+--		let npp = inc np 
+--		in  S(npp)
+
+inc2 x =^= {x,[{1,{Var(2), 
+				CaseOf(Var(2), [
+						{Constr(Z,[]), LeftE(Constr(S, [Constr(Z,[])]))}
+					, {Constr(S,[Var(3)]), LetIn(Var(4), 1, Var(3), LeftE(Constr(S, [Var(4)])))}
+					])}}]}
+
+inc x =^= {x,[{1,{Var(2),CaseOf(Var(2),[{Constr(Z,[]),LeftE(Constr(S,[Constr(Z,[])]))},{Constr(S,[Var(3)]),LetIn(Var(4),1,Var(3),LeftE(Constr(S,[Var(4)])))}])}}]}
+
+testPlus input =^=
+	let  {ident, funEnv} = plus 11
+			 value = fromValue input
+			 {funEnv', ident', value'} = eval {funEnv, ident, value}
+	rlet {ident', funEnv'} = plus 11
+	     value' = fromValue output
+	in output
+
+testMinus input =^=
+	let  {ident, funEnv} = plus 12
+			 value = fromValue input
+			 {funEnv', ident', value'} = eval {funEnv, ident, value}
+	rlet {ident', funEnv'} = plus 12
+	     value' = fromValue output
+	in output
+
+--plus {x,  Z } =^= |{x}|
+--plus {x,S(u)} =^= 
+--    let {xp,up} = plus {x,u} 
+--    in  {xp, S(up)}
+
+plus x =^= {x,[{11,{ Constr(Tuple,[Var(10),Var(4)]), 
+				CaseOf(Var(4), [
+						{Constr(Z,[]), LeftE(DupEq(Constr(Tuple,[Var(10)])))}
+					, {Constr(S,[Var(12)]), 
+--							LeftE(Constr(Tuple,[Var(1),Var(3)]))
+							LetIn(Constr(Tuple,[Var(4), Var(5)]), 11, Constr(Tuple,[Var(10),Var(12)]), 
+								LeftE(Constr(Tuple,[Var(4),Constr(S, [Var(5)])])))
+						}
+				])
+					}},
+					{1, {Var(1), RLetIn(Var(1), 11, Var(2), LeftE(Var(2)))} }]}
+
+
+fromValue Z    =^= ConstrV(Z,[])
+fromValue S(n) =^= 
+	let v = fromValue n
+	in  ConstrV(S, [v])
+fromValue {x,y} =^= 
+	let x' = fromValue x
+			y' = fromValue y
+	in  ConstrV(Tuple, [x',y'])
+fromValue {x} =^= 
+	let x' = fromValue x
+	in  ConstrV(Tuple, [x'])
+fromValue (x:xs) =^= 
+	let x'  = fromValue x
+	    xs' = fromValue xs
+	in  ConstrV(Cons, [x',xs'])
+fromValue [] =^= ConstrV(Nil, [])
+fromValue (Even(x)) =^= 
+	let x'  = fromValue x
+	in  ConstrV(Even, [x'])
+fromValue (Odd(x)) =^= 
+	let x'  = fromValue x
+	in  ConstrV(Odd, [x'])
+
+
+testFib input =^=
+	let  {ident, funEnv} = fib 1
+			 value = fromValue input
+			 {funEnv', ident', value'} = eval {funEnv, ident, value}
+	rlet {ident', funEnv'} = fib 1
+	     value' = fromValue output
+	in output
+
+fib x =^= {x,[{1,{Var(2),CaseOf(Var(2),[{Constr(Z,[]),LeftE(Constr(Tuple,[Constr(S,[Constr(Z,[])]),Constr(S,[Constr(Z,[])])]))},{Constr(S,[Var(3)]),LetIn(Constr(Tuple,[Var(2),Var(4)]),1,Var(3),LetIn(Var(6),5,Constr(Tuple,[Var(4),Var(2)]),LeftE(Var(6))))}])}},
+{4,{Var(2),CaseOf(Var(2),[{Constr(Tuple,[Var(2),Constr(Z,[])]),LeftE(DupEq(Constr(Tuple,[Var(2)])))},{Constr(Tuple,[Var(2),Constr(S,[Var(10)])]),LetIn(Constr(Tuple,[Var(11),Var(12)]),5,Constr(Tuple,[Var(2),Var(10)]),LeftE(Constr(Tuple,[Var(11),Constr(S,[Var(12)])])))}])}},
+{2,{Var(8),RLetIn(Var(8),5,Var(9),LeftE(Var(9)))}}]}
+
+
+testFilter input =^=
+	let  {ident, funEnv} = filter 1
+			 value = fromValue input
+			 {funEnv', ident', value'} = eval {funEnv, ident, value}
+	rlet {ident', funEnv'} = filter 1
+	     value' = fromValue output
+	in output
+
+
+filter x =^= {x,[{1,{Constr(Tuple,[Var(10),Var(11)]),LetIn(Var(13),12,Var(10),LetIn(Constr(Tuple,[Var(15),Var(16)]),14,Constr(Tuple,[Var(13),Var(11)]),RLetIn(Var(15),12,Var(17),LeftE(Constr(Tuple,[Var(17),Var(16)])))))}},
+{1,{Var(3),CaseOf(DupEq(Var(3)),[{Var(4),LeftE(Var(4))}])}},
+{3,{Var(6),CaseOf(Var(6),[{Constr(Z,[]),LeftE(Constr(Even,[Constr(Z,[])]))},{Constr(S,[Constr(Z,[])]),LeftE(Constr(Odd,[Constr(S,[Constr(Z,[])])]))},{Constr(S,[Constr(S,[Var(7)])]),LetIn(Var(8),5,Var(7),CaseOf(Var(8),[{Constr(Even,[Var(9)]),LeftE(Constr(Even,[Constr(S,[Constr(S,[Var(9)])])]))},{Constr(Odd,[Var(9)]),LeftE(Constr(Odd,[Constr(S,[Constr(S,[Var(9)])])]))}]))}])}},
+{7,{Var(6),CaseOf(Var(6),[{Constr(Nil,[]),LeftE(Constr(Nil,[]))},{Constr(Cons,[Var(7),Var(22)]),LetIn(Var(23),5,Var(7),LetIn(Var(13),12,Var(22),LeftE(Constr(Cons,[Var(23),Var(13)]))))}])}},
+{2,{Var(6),CaseOf(Var(6),[{Constr(Tuple,[Constr(Nil,[]),Var(11)]),LeftE(Constr(Tuple,[Constr(Nil,[]),Var(11)]))},{Constr(Tuple,[Constr(Cons,[Var(18),Var(10)]),Constr(Nil,[])]),LeftE(Constr(Tuple,[Constr(Cons,[Var(18),Var(10)]),Constr(Nil,[])]))},{Constr(Tuple,[Constr(Cons,[Var(18),Var(10)]),Constr(Cons,[Var(3),Var(11)])]),CaseOf(Var(18),[{Constr(Odd,[Var(19)]),LetIn(Constr(Tuple,[Var(17),Var(16)]),14,Constr(Tuple,[Var(10),Constr(Cons,[Var(3),Var(11)])]),LetIn(Constr(Tuple,[Var(20),Var(21)]),2,Constr(Tuple,[Var(19)]),LeftE(Constr(Tuple,[Constr(Cons,[Constr(Odd,[Var(20)]),Var(17)]),Constr(Cons,[Var(21),Var(16)])]))))},{Constr(Even,[Var(19)]),LetIn(Constr(Tuple,[Var(17),Var(16)]),14,Constr(Tuple,[Var(10),Var(11)]),LeftE(Constr(Tuple,[Constr(Cons,[Constr(Even,[Var(19)]),Var(17)]),Constr(Cons,[Var(3),Var(16)])])))}])}])}}]}
+
+
+testSelf input =^=
+	let  {ident, funEnv} = self 1
+			 value = fromValue input
+			 {funEnv', ident', value'} = eval {funEnv, ident, value}
+	rlet {ident', funEnv'} = self 1
+	     value' = fromValue output
+	in output
+
+-- x == 1
+self x =^= {x,[{1,{Var(133),LetIn(Constr(Tuple,[Var(29),Var(60)]),124,Constr(Z,[]),LetIn(Var(10),123,Var(133),LetIn(Constr(Tuple,[Var(66),Var(63),Var(18)]),59,Constr(Tuple,[Var(29),Var(60),Var(10)]),RLetIn(Constr(Tuple,[Var(63),Var(66)]),124,Constr(Z,[]),RLetIn(Var(18),123,Var(134),LeftE(Var(134)))))))}},
+{1,{Var(3),RLetIn(Var(3),4,Var(5),LeftE(Var(5)))}},
+{2,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Constr(Z,[]),Constr(Cons,[Constr(Z,[]),Var(14)])]),LeftE(Constr(Tuple,[Constr(Z,[]),Var(14)]))},{Constr(Tuple,[Constr(S,[Var(126)]),Constr(Cons,[Constr(Z,[]),Var(14)])]),LetIn(Constr(Tuple,[Var(127),Var(54)]),4,Constr(Tuple,[Constr(S,[Var(126)]),Var(14)]),LeftE(Constr(Tuple,[Var(127),Constr(Cons,[Constr(Z,[]),Var(54)])])))},{Constr(Tuple,[Constr(S,[Var(126)]),Constr(Cons,[Constr(S,[Var(129)]),Var(14)])]),LetIn(Constr(Tuple,[Var(127),Var(79)]),4,Constr(Tuple,[Var(126),Constr(Cons,[Var(129),Var(14)])]),CaseOf(Var(79),[{Constr(Nil,[]),LeftE(Constr(Tuple,[Constr(S,[Var(127)]),Constr(Nil,[])]))},{Constr(Cons,[Var(130),Var(54)]),LeftE(Constr(Tuple,[Constr(S,[Var(127)]),Constr(Cons,[Constr(S,[Var(130)]),Var(54)])]))}]))}])}},
+{2,{Constr(Tuple,[Constr(Cons,[Constr(Tuple,[Var(7),Var(8)]),Var(9)]),Var(10)]),LetIn(Var(12),11,Constr(Tuple,[Var(7),Var(10)]),CaseOf(Var(12),[{Constr(Right,[Var(13),Var(14)]),LetIn(Constr(Tuple,[Var(16),Var(17)]),15,Constr(Tuple,[Constr(Tuple,[Var(13),Var(8)])]),LeftE(Constr(Tuple,[Constr(Z,[]),Var(16),Constr(Cons,[Var(17),Var(9)]),Var(14)])))},{Constr(Left,[Var(13),Var(18)]),LetIn(Constr(Tuple,[Var(19),Var(20),Var(21),Var(14)]),6,Constr(Tuple,[Var(9),Var(18)]),LeftE(Constr(Tuple,[Constr(S,[Var(19)]),Var(20),Constr(Cons,[Constr(Tuple,[Var(13),Var(8)]),Var(21)]),Var(14)])))}]))}},
+{5,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Constr(Var,[Var(44)]),Var(10)]),LetIn(Constr(Tuple,[Var(56),Var(54)]),55,Constr(Tuple,[Constr(Tuple,[Var(44),Var(10)]),Constr(Nil,[])]),LeftE(Constr(Right,[Constr(Var,[Var(56)]),Var(54)])))},{Constr(Tuple,[Constr(Constr,[Var(110),Constr(Nil,[])]),Constr(ConstrV,[Var(111),Constr(Nil,[])])]),CaseOf(DupEq(Constr(Tuple,[Var(110),Var(111)])),[{Constr(Tuple,[Var(112)]),LeftE(Constr(Right,[Constr(Constr,[Var(112),Constr(Nil,[])]),Constr(Nil,[])]))},{Constr(Tuple,[Var(112),Var(113)]),LeftE(Constr(Left,[Constr(Constr,[Var(112),Constr(Nil,[])]),Constr(ConstrV,[Var(113),Constr(Nil,[])])]))}])},{Constr(Tuple,[Constr(Constr,[Var(110),Constr(Nil,[])]),Constr(ConstrV,[Var(111),Constr(Cons,[Var(3),Var(114)])])]),LeftE(Constr(Left,[Constr(Constr,[Var(110),Constr(Nil,[])]),Constr(ConstrV,[Var(111),Constr(Cons,[Var(3),Var(114)])])]))},{Constr(Tuple,[Constr(Constr,[Var(110),Constr(Cons,[Var(3),Var(115)])]),Constr(ConstrV,[Var(111),Constr(Nil,[])])]),LeftE(Constr(Left,[Constr(Constr,[Var(110),Constr(Cons,[Var(3),Var(115)])]),Constr(ConstrV,[Var(111),Constr(Nil,[])])]))},{Constr(Tuple,[Constr(Constr,[Var(110),Constr(Cons,[Var(3),Var(115)])]),Constr(ConstrV,[Var(111),Constr(Cons,[Var(116),Var(114)])])]),LetIn(Var(33),11,Constr(Tuple,[Var(3),Var(116)]),LetIn(Var(34),11,Constr(Tuple,[Constr(Constr,[Var(110),Var(115)]),Constr(ConstrV,[Var(111),Var(114)])]),CaseOf(Constr(Tuple,[Var(33),Var(34)]),[{Constr(Tuple,[Constr(Right,[Var(5),Var(54)]),Constr(Right,[Constr(Constr,[Var(112),Var(117)]),Var(57)])]),LetIn(Constr(Tuple,[Var(79),Var(14)]),40,Constr(Tuple,[Var(54),Var(57)]),RLetIn(Constr(Tuple,[Var(5),Var(79)]),81,Constr(Tuple,[Var(118),Constr(Nil,[])]),LeftE(Constr(Right,[Constr(Constr,[Var(112),Constr(Cons,[Var(118),Var(117)])]),Var(14)]))))},{Constr(Tuple,[Var(36),Var(37)]),RLetIn(Var(36),11,Constr(Tuple,[Var(5),Var(119)]),RLetIn(Var(37),11,Constr(Tuple,[Constr(Constr,[Var(112),Var(117)]),Constr(ConstrV,[Var(113),Var(120)])]),LeftE(Constr(Left,[Constr(Constr,[Var(112),Constr(Cons,[Var(5),Var(117)])]),Constr(ConstrV,[Var(113),Constr(Cons,[Var(119),Var(120)])])]))))}])))},{Constr(Tuple,[Constr(DupEq,[Var(79)]),Var(10)]),LetIn(Var(18),75,Var(10),LetIn(Var(12),11,Constr(Tuple,[Var(79),Var(18)]),CaseOf(Var(12),[{Constr(Right,[Var(80),Var(54)]),LeftE(Constr(Right,[Constr(DupEq,[Var(80)]),Var(54)]))},{Constr(Left,[Var(80),Var(25)]),RLetIn(Var(25),75,Var(38),LeftE(Constr(Left,[Constr(DupEq,[Var(80)]),Var(38)])))}])))}])}},
+{4,{Var(3),CaseOf(DupEq(Var(3)),[{Var(5),LeftE(Var(5))}])}},
+{7,{Constr(Tuple,[Constr(Cons,[Constr(Tuple,[Var(7),Var(8)]),Var(9)]),Var(10)]),LetIn(Var(12),23,Constr(Tuple,[Var(8),Var(10)]),CaseOf(Var(12),[{Constr(Tuple,[Constr(Right,[Var(24)]),Var(18)]),LetIn(Constr(Tuple,[Var(16),Var(17)]),15,Constr(Tuple,[Constr(Tuple,[Var(7),Var(24)])]),LeftE(Constr(Tuple,[Constr(Z,[]),Var(16),Constr(Cons,[Var(17),Var(9)]),Var(18)])))},{Constr(Tuple,[Constr(Left,[Var(24)]),Var(18)]),LetIn(Constr(Tuple,[Var(19),Var(20),Var(21),Var(25)]),22,Constr(Tuple,[Var(9),Var(18)]),LeftE(Constr(Tuple,[Constr(S,[Var(19)]),Var(20),Constr(Cons,[Constr(Tuple,[Var(7),Var(24)]),Var(21)]),Var(25)])))}]))}},
+{1,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Constr(LeftE,[Var(7)]),Var(10)]),LetIn(Var(12),11,Constr(Tuple,[Var(7),Var(10)]),CaseOf(Var(12),[{Constr(Right,[Var(13),Var(14)]),RLetIn(Constr(Right,[Var(13),Var(14)]),11,Constr(Tuple,[Var(27),Var(18)]),LeftE(Constr(Tuple,[Constr(Right,[Constr(LeftE,[Var(27)])]),Var(18)])))},{Constr(Left,[Var(13),Var(18)]),LeftE(Constr(Tuple,[Constr(Left,[Constr(LeftE,[Var(13)])]),Var(18)]))}]))},{Constr(Tuple,[Constr(LetIn,[Var(28),Var(29),Var(30),Var(8)]),Var(10)]),LetIn(Var(12),23,Constr(Tuple,[Var(8),Var(10)]),CaseOf(Var(12),[{Constr(Tuple,[Constr(Right,[Var(24)]),Var(18)]),LeftE(Constr(Tuple,[Constr(Right,[Constr(LetIn,[Var(28),Var(29),Var(30),Var(24)])]),Var(18)]))},{Constr(Tuple,[Constr(Left,[Var(24)]),Var(18)]),LeftE(Constr(Tuple,[Constr(Left,[Constr(LetIn,[Var(28),Var(29),Var(30),Var(24)])]),Var(18)]))}]))},{Constr(Tuple,[Constr(RLetIn,[Var(28),Var(29),Var(30),Var(8)]),Var(10)]),LetIn(Var(12),23,Constr(Tuple,[Var(8),Var(10)]),CaseOf(Var(12),[{Constr(Tuple,[Constr(Right,[Var(24)]),Var(18)]),LeftE(Constr(Tuple,[Constr(Right,[Constr(RLetIn,[Var(28),Var(29),Var(30),Var(24)])]),Var(18)]))},{Constr(Tuple,[Constr(Left,[Var(24)]),Var(18)]),LeftE(Constr(Tuple,[Constr(Left,[Constr(RLetIn,[Var(28),Var(29),Var(30),Var(24)])]),Var(18)]))}]))},{Constr(Tuple,[Constr(CaseOf,[Var(7),Constr(Nil,[])]),Var(10)]),LeftE(Constr(Tuple,[Constr(Left,[Constr(CaseOf,[Var(7),Constr(Nil,[])])]),Var(10)]))},{Constr(Tuple,[Constr(CaseOf,[Var(7),Constr(Cons,[Constr(Tuple,[Var(31),Var(32)]),Var(9)])]),Var(10)]),LetIn(Constr(Tuple,[Var(33),Var(18)]),23,Constr(Tuple,[Var(32),Var(10)]),LetIn(Constr(Tuple,[Var(34),Var(25)]),23,Constr(Tuple,[Constr(CaseOf,[Var(7),Var(9)]),Var(18)]),CaseOf(Constr(Tuple,[Var(33),Var(34)]),[{Constr(Tuple,[Constr(Left,[Var(35)]),Constr(Left,[Constr(CaseOf,[Var(13),Var(21)])])]),LeftE(Constr(Tuple,[Constr(Left,[Constr(CaseOf,[Var(13),Constr(Cons,[Constr(Tuple,[Var(31),Var(35)]),Var(21)])])]),Var(25)]))},{Constr(Tuple,[Var(36),Var(37)]),RLetIn(Constr(Tuple,[Var(37),Var(25)]),23,Constr(Tuple,[Constr(CaseOf,[Var(13),Var(21)]),Var(38)]),RLetIn(Constr(Tuple,[Var(36),Var(38)]),23,Constr(Tuple,[Var(35),Var(39)]),LeftE(Constr(Tuple,[Constr(Right,[Constr(CaseOf,[Var(13),Constr(Cons,[Constr(Tuple,[Var(31),Var(35)]),Var(21)])])]),Var(39)]))))}])))}])}},
+{17,{Constr(Tuple,[Var(41),Var(42)]),LetIn(Constr(Tuple,[Var(44),Var(3)]),43,Var(41),LetIn(Constr(Tuple,[Constr(Z,[]),Var(46)]),45,Constr(Tuple,[Constr(Z,[]),Var(44)]),LetIn(Var(48),47,Constr(Tuple,[Var(46),Var(3)]),LetIn(Constr(Tuple,[Var(50),Var(14)]),49,Constr(Tuple,[Var(48),Var(42)]),RLetIn(Constr(Tuple,[Constr(Z,[]),Var(50)]),45,Constr(Tuple,[Constr(Z,[]),Var(51)]),LeftE(Constr(Tuple,[Var(51),Var(14)])))))))}},
+{3,{Var(3),RLetIn(Var(3),47,Var(5),LeftE(Var(5)))}},
+{2,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Var(98),Constr(Nil,[])]),LeftE(Constr(Tuple,[Var(98),Constr(Nil,[])]))},{Constr(Tuple,[Var(98),Constr(Cons,[Var(44),Var(52)])]),LetIn(Constr(Tuple,[Var(132),Var(56)]),131,Constr(Tuple,[Var(98),Var(44)]),LetIn(Constr(Tuple,[Var(78),Var(79)]),45,Constr(Tuple,[Var(56),Var(52)]),LeftE(Constr(Tuple,[Var(132),Constr(Cons,[Var(78),Var(79)])]))))}])}},
+{2,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Constr(Nil,[]),Constr(Nil,[])]),LeftE(Constr(Nil,[]))},{Constr(Tuple,[Constr(Cons,[Var(44),Var(52)]),Constr(Cons,[Var(76),Var(135)])]),LetIn(Var(136),47,Constr(Tuple,[Var(52),Var(135)]),LeftE(Constr(Cons,[Constr(Tuple,[Var(44),Var(76)]),Var(136)])))}])}},
+{2,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Constr(Nil,[]),Var(14)]),LeftE(Constr(Tuple,[Constr(Nil,[]),Var(14)]))},{Constr(Tuple,[Constr(Cons,[Var(44),Var(52)]),Var(14)]),LetIn(Constr(Tuple,[Var(53),Var(54)]),49,Constr(Tuple,[Var(52),Var(14)]),LetIn(Constr(Tuple,[Var(56),Var(57)]),55,Constr(Tuple,[Var(44),Var(54)]),LeftE(Constr(Tuple,[Constr(Cons,[Var(56),Var(53)]),Var(57)]))))}])}},
+{6,{Var(3),RLetIn(Var(3),125,Var(5),LeftE(Var(5)))}},
+{3,{Var(3),RLetIn(Var(3),40,Var(5),LeftE(Var(5)))}},
+{1,{Constr(Tuple,[Var(29),Var(60),Var(61)]),LetIn(Constr(Tuple,[Var(63),Constr(Tuple,[Var(64),Var(65)]),Var(66)]),62,Constr(Tuple,[Var(29),Var(60)]),LetIn(Constr(Right,[Var(67),Var(68)]),11,Constr(Tuple,[Var(64),Var(61)]),LetIn(Constr(Tuple,[Var(70),Var(71),Var(72)]),69,Constr(Tuple,[Var(65),Var(66),Var(68)]),RLetIn(Constr(Tuple,[Var(63),Constr(Tuple,[Var(67),Var(70)]),Var(71)]),62,Constr(Tuple,[Var(73),Var(74)]),LeftE(Constr(Tuple,[Var(74),Var(73),Var(72)]))))))}},
+{3,{Constr(Tuple,[Var(29),Var(60)]),LetIn(Constr(Tuple,[Constr(Tuple,[Var(63),Var(3)]),Var(66)]),125,Constr(Tuple,[Var(29),Var(60)]),LetIn(Constr(Tuple,[Var(5),Var(118)]),15,Constr(Tuple,[Var(3)]),LetIn(Constr(Tuple,[Var(73),Var(71)]),55,Constr(Tuple,[Constr(Tuple,[Var(63),Var(5)]),Var(66)]),LeftE(Constr(Tuple,[Var(73),Var(118),Var(71)])))))}},
+{7,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Constr(LeftE,[Var(79)]),Var(60),Var(14)]),RLetIn(Constr(Right,[Var(79),Var(14)]),11,Constr(Tuple,[Var(80),Var(10)]),LeftE(Constr(Tuple,[Constr(LeftE,[Var(80)]),Var(60),Var(10)])))},{Constr(Tuple,[Constr(LetIn,[Var(28),Var(29),Var(30),Var(8)]),Var(60),Var(14)]),LetIn(Constr(Tuple,[Var(82),Var(83)]),81,Constr(Tuple,[Var(30),Constr(Nil,[])]),LetIn(Constr(Tuple,[Var(84),Var(85)]),58,Constr(Tuple,[Var(83),Var(14)]),LetIn(Constr(Tuple,[Var(66),Var(63),Var(87),Var(88)]),86,Constr(Tuple,[Var(60),Var(29),Var(82),Var(84)]),LetIn(Constr(Right,[Var(89),Var(90)]),11,Constr(Tuple,[Var(28),Var(88)]),LetIn(Constr(Tuple,[Var(91),Var(92)]),40,Constr(Tuple,[Var(90),Var(85)]),RLetIn(Constr(Tuple,[Var(89),Var(91)]),81,Constr(Tuple,[Var(93),Constr(Nil,[])]),LetIn(Constr(Tuple,[Var(24),Var(71),Var(3)]),69,Constr(Tuple,[Var(8),Var(66),Var(92)]),LeftE(Constr(Tuple,[Constr(LetIn,[Var(93),Var(63),Var(87),Var(24)]),Var(71),Var(3)])))))))))},{Constr(Tuple,[Constr(RLetIn,[Var(30),Var(29),Var(28),Var(8)]),Var(60),Var(14)]),RLetIn(Constr(Tuple,[Constr(LetIn,[Var(30),Var(29),Var(28),Var(8)]),Var(60),Var(14)]),69,Constr(Tuple,[Constr(LetIn,[Var(82),Var(63),Var(89),Var(24)]),Var(66),Var(10)]),LeftE(Constr(Tuple,[Constr(RLetIn,[Var(82),Var(63),Var(89),Var(24)]),Var(66),Var(10)])))},{Constr(Tuple,[Constr(CaseOf,[Var(7),Var(9)]),Var(60),Var(14)]),LetIn(Constr(Tuple,[Var(13),Var(94)]),81,Constr(Tuple,[Var(7),Constr(Nil,[])]),LetIn(Constr(Tuple,[Var(95),Var(96)]),58,Constr(Tuple,[Var(94),Var(14)]),LetIn(Constr(Tuple,[Constr(LeftE,[Var(27)]),Var(66),Var(97)]),69,Constr(Tuple,[Constr(LeftE,[Var(13)]),Var(60),Var(95)]),LetIn(Constr(Tuple,[Var(98),Constr(Tuple,[Var(99),Var(100)]),Var(21),Var(101)]),6,Constr(Tuple,[Var(9),Var(97)]),LetIn(Constr(Tuple,[Var(102),Var(103)]),40,Constr(Tuple,[Var(101),Var(96)]),RLetIn(Constr(Tuple,[Var(99),Var(102)]),81,Constr(Tuple,[Var(104),Constr(Nil,[])]),LetIn(Constr(Tuple,[Var(105),Var(71),Var(10)]),69,Constr(Tuple,[Var(100),Var(66),Var(103)]),RLetIn(Constr(Tuple,[Var(98),Constr(Tuple,[Var(104),Var(105)]),Var(21),Var(10)]),22,Constr(Tuple,[Var(106),Var(18)]),LeftE(Constr(Tuple,[Constr(CaseOf,[Var(27),Var(106)]),Var(71),Var(18)]))))))))))}])}},
+{6,{Var(26),CaseOf(Var(26),[{Constr(ConstrV,[Constr(Tuple,[]),Constr(Cons,[Var(44),Constr(Cons,[Var(76),Constr(Nil,[])])])]),CaseOf(DupEq(Constr(Tuple,[Var(44),Var(76)])),[{Constr(Tuple,[Var(56)]),LeftE(Constr(ConstrV,[Constr(Tuple,[]),Constr(Cons,[Var(56),Constr(Nil,[])])]))},{Constr(Tuple,[Var(56),Var(77)]),LeftE(Constr(ConstrV,[Constr(Tuple,[]),Constr(Cons,[Var(56),Constr(Cons,[Var(77),Constr(Nil,[])])])]))}])},{Constr(ConstrV,[Constr(Tuple,[]),Constr(Cons,[Var(44),Constr(Nil,[])])]),LetIn(Constr(Tuple,[Var(56),Var(78)]),15,Constr(Tuple,[Var(44)]),LeftE(Constr(ConstrV,[Constr(Tuple,[]),Constr(Cons,[Var(56),Constr(Cons,[Var(78),Constr(Nil,[])])])])))}])}},
+{6,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Constr(Var,[Var(44)]),Var(51)]),LetIn(Constr(Tuple,[Var(56),Var(121)]),2,Constr(Tuple,[Var(44),Var(51)]),LeftE(Constr(Tuple,[Constr(Var,[Var(56)]),Var(121)])))},{Constr(Tuple,[Constr(DupEq,[Var(79)]),Var(51)]),LetIn(Constr(Tuple,[Var(80),Var(121)]),81,Constr(Tuple,[Var(79),Var(51)]),LeftE(Constr(Tuple,[Constr(DupEq,[Var(80)]),Var(121)])))},{Constr(Tuple,[Constr(Constr,[Var(110),Constr(Nil,[])]),Var(51)]),LeftE(Constr(Tuple,[Constr(Constr,[Var(110),Constr(Nil,[])]),Var(51)]))},{Constr(Tuple,[Constr(Constr,[Var(110),Constr(Cons,[Var(3),Var(115)])]),Var(51)]),LetIn(Constr(Tuple,[Var(5),Var(121)]),81,Constr(Tuple,[Var(3),Var(51)]),LetIn(Constr(Tuple,[Constr(Constr,[Var(112),Var(117)]),Var(122)]),81,Constr(Tuple,[Constr(Constr,[Var(110),Var(115)]),Var(121)]),LeftE(Constr(Tuple,[Constr(Constr,[Var(112),Constr(Cons,[Var(5),Var(117)])]),Var(122)]))))}])}},
+{5,{Constr(Tuple,[Var(60),Var(29),Var(107),Var(14)]),LetIn(Constr(Tuple,[Var(63),Constr(Tuple,[Var(64),Var(65)]),Var(66)]),62,Constr(Tuple,[Var(29),Var(60)]),LetIn(Constr(Tuple,[Constr(LeftE,[Var(108)]),Var(71),Var(5)]),69,Constr(Tuple,[Constr(LeftE,[Var(107)]),Var(66),Var(14)]),LetIn(Constr(Right,[Var(67),Var(68)]),11,Constr(Tuple,[Var(64),Var(5)]),LetIn(Constr(Tuple,[Var(70),Var(74),Var(10)]),69,Constr(Tuple,[Var(65),Var(71),Var(68)]),RLetIn(Constr(Tuple,[Var(63),Constr(Tuple,[Var(67),Var(70)]),Var(74)]),62,Constr(Tuple,[Var(73),Var(109)]),LeftE(Constr(Tuple,[Var(109),Var(73),Var(108),Var(10)])))))))}},
+{37,{Var(26),CaseOf(Var(26),[{Constr(Z,[]),LeftE(Constr(ConstrV,[Constr(Z,[]),Constr(Nil,[])]))},{Constr(S,[Var(19)]),LetIn(Var(3),123,Var(19),LeftE(Constr(ConstrV,[Constr(S,[]),Constr(Cons,[Var(3),Constr(Nil,[])])])))},{Constr(Tuple,[Var(44),Var(76)]),LetIn(Var(56),123,Var(44),LetIn(Var(77),123,Var(76),LeftE(Constr(ConstrV,[Constr(Tuple,[]),Constr(Cons,[Var(56),Constr(Cons,[Var(77),Constr(Nil,[])])])]))))},{Constr(Tuple,[Var(44)]),LetIn(Var(56),123,Var(44),LeftE(Constr(ConstrV,[Constr(Tuple,[]),Constr(Cons,[Var(56),Constr(Nil,[])])])))},{Constr(Cons,[Var(44),Var(52)]),LetIn(Var(56),123,Var(44),LetIn(Var(53),123,Var(52),LeftE(Constr(ConstrV,[Constr(Cons,[]),Constr(Cons,[Var(56),Constr(Cons,[Var(53),Constr(Nil,[])])])]))))},{Constr(Nil,[]),LeftE(Constr(ConstrV,[Constr(Nil,[]),Constr(Nil,[])]))}])}},
+
+{1,{Var(44),LeftE(Constr(Tuple,[Var(44),Constr(Cons,[Constr(Tuple,[Constr(Z,[]),Constr(Tuple,[Constr(Var,[Constr(S,[Constr(Z,[])])]),Constr(CaseOf,[Constr(Var,[Constr(S,[Constr(Z,[])])]),Constr(Cons,[Constr(Tuple,[Constr(Constr,[Constr(Z,[]),Constr(Nil,[])]),Constr(LeftE,[Constr(Constr,[Constr(S,[]),Constr(Cons,[Constr(Constr,[Constr(Z,[]),Constr(Nil,[])]),Constr(Nil,[])])])])]),Constr(Cons,[Constr(Tuple,[Constr(Constr,[Constr(S,[]),Constr(Cons,[Constr(Var,[Constr(S,[Constr(S,[Constr(Z,[])])])]),Constr(Nil,[])])]),Constr(LetIn,[Constr(Var,[Constr(S,[Constr(S,[Constr(S,[Constr(Z,[])])])])]),Constr(Z,[]),Constr(Var,[Constr(S,[Constr(S,[Constr(Z,[])])])]),Constr(LeftE,[Constr(Constr,[Constr(S,[]),Constr(Cons,[Constr(Var,[Constr(S,[Constr(S,[Constr(S,[Constr(Z,[])])])])]),Constr(Nil,[])])])])])]),Constr(Nil,[])])])])])]),Constr(Nil,[])])]))}},
+
+
+{1,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Constr(Z,[]),Constr(Cons,[Constr(Tuple,[Constr(Z,[]),Var(3)]),Var(14)])]),LeftE(Constr(Tuple,[Constr(Tuple,[Constr(Z,[]),Var(3)]),Var(14)]))},{Constr(Tuple,[Constr(S,[Var(126)]),Constr(Cons,[Constr(Tuple,[Constr(Z,[]),Var(3)]),Var(14)])]),LetIn(Constr(Tuple,[Constr(Tuple,[Var(127),Var(128)]),Var(54)]),125,Constr(Tuple,[Constr(S,[Var(126)]),Var(14)]),LeftE(Constr(Tuple,[Constr(Tuple,[Var(127),Var(128)]),Constr(Cons,[Constr(Tuple,[Constr(Z,[]),Var(3)]),Var(54)])])))},{Constr(Tuple,[Constr(S,[Var(126)]),Constr(Cons,[Constr(Tuple,[Constr(S,[Var(129)]),Var(3)]),Var(14)])]),LetIn(Constr(Tuple,[Constr(Tuple,[Var(127),Var(128)]),Var(79)]),125,Constr(Tuple,[Var(126),Constr(Cons,[Constr(Tuple,[Var(129),Var(3)]),Var(14)])]),CaseOf(Var(79),[{Constr(Nil,[]),LeftE(Constr(Tuple,[Constr(Tuple,[Constr(S,[Var(127)]),Var(128)]),Constr(Nil,[])]))},{Constr(Cons,[Constr(Tuple,[Var(130),Var(3)]),Var(54)]),LeftE(Constr(Tuple,[Constr(Tuple,[Constr(S,[Var(127)]),Var(128)]),Constr(Cons,[Constr(Tuple,[Constr(S,[Var(130)]),Var(3)]),Var(54)])]))}]))}])}},
+{6,{Var(26),CaseOf(Var(26),[{Constr(Tuple,[Constr(Z,[]),Var(76)]),LeftE(Constr(Tuple,[Constr(Z,[]),Var(76)]))},{Constr(Tuple,[Constr(S,[Var(44)]),Var(76)]),LetIn(Constr(Tuple,[Var(56),Var(77)]),131,Constr(Tuple,[Var(44),Var(76)]),LeftE(Constr(Tuple,[Constr(S,[Var(56)]),Constr(S,[Var(77)])])))}])}}]}
+
+--{1,{Var(44),LeftE(Constr(Tuple,[Var(44),Constr(Cons,[Constr(Tuple,[Constr(Z,[]),Constr(Tuple,[Constr(Var,[Constr(S,[Constr(Z,[])])]),Constr(CaseOf,[Constr(Var,[Constr(S,[Constr(Z,[])])]),Constr(Cons,[Constr(Tuple,[Constr(Constr,[Constr(Z,[]),Constr(Nil,[])]),Constr(LeftE,[Constr(Constr,[Constr(S,[]),Constr(Cons,[Constr(Constr,[Constr(Z,[]),Constr(Nil,[])]),Constr(Nil,[])])])])]),Constr(Cons,[Constr(Tuple,[Constr(Constr,[Constr(S,[]),Constr(Cons,[Constr(Var,[Constr(S,[Constr(S,[Constr(Z,[])])])]),Constr(Nil,[])])]),Constr(LetIn,[Constr(Var,[Constr(S,[Constr(S,[Constr(S,[Constr(Z,[])])])])]),Constr(Z,[]),Constr(Var,[Constr(S,[Constr(S,[Constr(Z,[])])])]),Constr(LeftE,[Constr(Constr,[Constr(S,[]),Constr(Cons,[Constr(Var,[Constr(S,[Constr(S,[Constr(S,[Constr(Z,[])])])])]),Constr(Nil,[])])])])])]),Constr(Nil,[])])])])])]),Constr(Nil,[])])]))}},

@@ -1,0 +1,28 @@
+-- Plus using the dup/eq expression (not "Type-safe")
+plus {  Z , y} =^= |{y}|
+plus {S(x), y} =^= 
+    let {xp,yp} = plus {x,y} 
+    in  {S(xp), yp}
+
+-- Plus without dup/eq (no deep matching is required)
+plusAlt {Z,   Z } =^= {Z, Z}
+plusAlt {S(x),   Z } =^= 
+		let x' = plusAlt {x, Z}
+		in  {S(x'), Z}
+plusAlt {x, S(y)} =^= 
+    let {x', y'} = plusAlt {x, y} 
+    in  {S(x'), S(y')}
+
+-- Plus that also supports negative numbers
+plusNeg {x,   Z } =^= {x, Z}
+plusNeg {x, S(y)} =^= 
+    case plusNeg {x,y} of
+		    {  Z  , y'} -> {  S(Z)  , S(y')}
+		    {S(x'), y'} -> {S(S(x')), S(y')}
+		    {P(x'), y'} -> {    x'  , S(y')}
+plusNeg {x, P(y)} =^= 
+    case plusNeg {x,y} of
+		    {  Z  , y'} -> {  P(Z)  , P(y')}
+		    {P(x'), y'} -> {P(P(x')), P(y')}
+		    {S(x'), y'} -> {    x'  , P(y')}
+

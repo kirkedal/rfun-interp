@@ -1,0 +1,8 @@
+-- Simple implementation of incrementation of a Peano number
+inc x =^= S(x)
+
+-- "Type-safe" implementation ensuring that input/output is a Peano number
+incP Z 	  =^= S(Z)
+incP S(np) =^= 
+	let npp = incP np
+	in  S(npp)

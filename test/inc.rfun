@@ -1,2 +1,0 @@
-inc Z 	  =^= S(Z)
-inc S(np) =^= let npp = inc np in S(npp)

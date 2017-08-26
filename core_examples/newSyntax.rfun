@@ -1,0 +1,72 @@
+data Nat = Z
+         | S Nat
+
+plus :: Nat -> (Nat => Nat)
+plus Z    x = x
+plus S(y) x =
+  let x' = plus y x
+  in  S(x')
+
+fib :: Nat => (Nat, Nat)
+fib Z    = (S(Z),S(Z))
+fib S(m) =
+    let {x,y} = fib m
+        y' = plus x y
+    in {y',x}
+
+test x =
+  let p5 = plus 5
+  in p5 x
+
+
+zip x y = 
+
+
+
+
+-- map applying the function given in fun
+map :: (a => b) -> [a] => [b]
+map fun     []   = []
+map fun (x : xs) =
+		let x'  <= fun x
+		    xs' <= map fun xs
+		in  (x' : xs')
+-- map fun (x : xs) = (fun x):(map fun xs)
+
+scanl :: (a -> b => a) -> a -> [b] => [a]
+scanl fun i []     = []
+scanl fun i (x:xs) =
+    let x' = fun i x
+        xs' = scanl fun x' xs
+    in  (x' : xs')
+
+foldl :: (b -> a => a) -> [b] -> a => a
+foldl fun []     a = a
+foldl fun (x:xs) a =
+  let a' = fun x a
+  in  foldl fun xs a'
+--foldl fun (x:xs) a = foldl fun xs (fun x a)
+
+foldr :: (b -> a => a) -> [b] -> a => a
+foldr fun []     a = a
+foldr fun (x:xs) a =
+  let a' = foldr fun xs a
+  in fun x a'
+
+
+length :: [a] -> () => Nat
+length []       = Z
+length (x : xs) = S(length xs)
+
+reverse :: [a] => [a]
+reverse xs =^=
+    let  xs_s = length xs ()
+         ([], ys) = move xs_s (xs, [])
+    rlet () = length ys xs_s
+    in   ys
+
+move :: Nat -> ([a], [a]) => ([a], [a])
+move Z    (   x  , l) = (x, l)
+move S(s) ((x:xs), l) =
+    move s {xs,(x:l)}
+

@@ -1,0 +1,86 @@
+-- EXAMPLES FOR IFL'15 PRESENTATION --
+
+-----------------------------
+-- Arithmetic functions
+-----------------------------
+
+-- data Peano = Z | S(Peano)
+
+inc x =^= S(x)
+
+-- with check for Peano number
+incP Z    =^= S(Z)
+incP S(x) =^=
+    let x' = incP x
+    in  S(x')
+
+-- decrement as reverse call
+dec n =^=
+    rlet n = inc n'
+    in   n'
+
+-- Input example: {2,4}
+plus {  Z , y} =^= |{y}|
+plus {S(x), y} =^=
+    let {x',y'} = plus {x,y}
+    in  {S(x'), y'}
+
+plusA { x,   Z } =^= {x, Z}
+plusA { x, S(y)} =^=
+    let {x',y'} = plusA {x,y}
+    in  {S(x'), S(y')}
+
+
+-----------------------------
+-- List functions
+-----------------------------
+zip {[],[]} =^= []
+zip {(x:xs),(y:ys)} =^=
+    let zs = zip {xs, ys}
+    in  ({x,y}:zs)
+
+length [] =^= {Z,[]}
+length (x : xs) =^=
+    let {l, xs'} = length xs
+    in  {S(l), (x : xs')}
+
+rev [] =^= []
+rev (x:xs) =^=
+    let  xs' = rev xs
+    rlet {xs',x} = last xs''
+    in xs''
+
+last ([x])  =^= {[],x}
+last (x:xs) =^=
+    let {xs',l} = last xs
+    in  {(x:xs'),l}
+
+reverse xs =^=
+    let  {xs_s, xs'}     = length xs
+         {[], ys, xs_s'} = move {xs', [], xs_s}
+    rlet {xs_s', ys}     = length ys'
+    in   ys'
+
+move {    x , l,   Z } =^= {x, l, Z}
+move {(x:xs), l, S(s)} =^=
+    let  {ys, ls, s'} = move {xs,(x:l),s}
+    in   {ys, ls, S(s')}
+
+-- Input example: {inc, [1,2,3]}
+map {fun,   []  } =^= {fun, []}
+map {fun, (x:xs)} =^=
+    let x' = fun x
+        {fun', xs'} = map {fun, xs}
+    in  {fun', (x':xs')}
+
+foldl {fun, i,     []} =^= {fun,i,[]}
+foldl {fun, i, (x:xs)} =^=
+    let {i', x'} = fun {i, x}
+        {fun', i'', xs'} = foldl {fun, i', xs}
+    in  {fun', i'', (x' : xs')}
+
+scanl {fun, i, []}     =^= {fun, i, []}
+scanl {fun, i, (x:xs)} =^=
+    let {x', i'} = fun {x, i}
+        {fun', x'', xs'} = scanl {fun, x', xs}
+    in  {fun', i', (x'' : xs')}
