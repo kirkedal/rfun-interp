@@ -72,6 +72,7 @@ tcExpr params (LeftE (App ident False lExprs)) =
     where
       les = map tcLExpr lExprs
 tcExpr params (LeftE lExpr) = C.LeftE $ C.Constr "Tuple" (params ++ [tcLExpr lExpr])
+tcExpr params (CaseOf app@(App _ _ _) cases) = tcExpr params $ LetIn (Var $ makeIdent "tmp_coApp") app (CaseOf (Var $ makeIdent "tmp_coApp") cases)
 tcExpr params (CaseOf lExpr cases) = C.CaseOf (tcLExpr lExpr) (map (\(le,_,e) -> (tcLExpr le, tcExpr params e)) cases)
 tcExpr params (LetIn leftLE (App ident True funLEs) expr) =  -- Forward application
     C.LetIn (C.Constr "Tuple" leftLEs) (tcIdent ident) (C.Constr "Tuple" rightLEs) (tcExpr params expr)

@@ -210,14 +210,15 @@ pExpr = (L.lineFold scn letin) <|> caseof <|> lefte <?> "expression"
                     scn
                     L.indentGuard scn GT il
                     il_l <- L.indentLevel
-                    c <- some $ try cases
+                    c <- some $ try (L.lineFold scn cases)
                     forM_ c (\(_,_,_,i) -> when (il_l /= i) (L.incorrectIndent EQ il_l i))
                     return $ CaseOf le $ map (\(x,y,z,_) -> (x,y,z)) c
-    cases      = do scn
+    cases sc'  = do scn
                     il <- L.indentLevel
                     le <- pLexpr
                     -- gs <- guard
                     symbol "->"
+                    sc'
                     e <- pExpr
                     return (le, (Guard []), e, il)
     lefte  = do le <- pLexprA
