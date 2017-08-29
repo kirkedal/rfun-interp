@@ -12,7 +12,7 @@
 --
 -----------------------------------------------------------------------------
 
-module Parser (parseFromFile, parseFromValue, prettyParseError, ParserError) where
+module Parser (parseFromFile, parseFromString, parseFromValue, prettyParseError, ParserError) where
 
 import Ast
 
@@ -32,7 +32,10 @@ parseFromFile :: FilePath -> IO (Either ParserError Program)
 parseFromFile fname =
   do input <- readFile fname
      return (parse programParser fname input)
-     -- return (parse programParser fname input)
+
+parseFromString :: String -> IO (Either ParserError Program)
+parseFromString input =
+  return (parse programParser "WebForm" input)
 
 parseFromValue :: String -> Either ParserError [Value]
 parseFromValue s = parse (some pValue) "Value" s

@@ -51,6 +51,9 @@ prettyPrintProgram :: Program -> IO ()
 prettyPrintProgram = putStrLn.ppProgram
 
 parseProgram :: String -> IO Program
+parseProgram "-" =
+  do str <- getContents
+     parseFromString str >>= fromParserError
 parseProgram filename = parseFromFile filename >>= fromParserError
 
 parseValues :: [String] -> IO [Value]
