@@ -30,9 +30,9 @@ main =
   do
     args <- getArgs
     case args of
-      [filename , values , program] ->
+      [filename , values, program] ->
         do p <- parseProgram filename
-           vs <- parseValues values
+           vs <- parseValues [values]
            typecheckProgram p
            res <- timeout (5 * 1000000) $ (return $ interp p program vs)
            case res of
