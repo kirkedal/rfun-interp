@@ -8,7 +8,7 @@ rfun: $(RFUNFILES)
 core: $(COREFILES)
 	ghc --make -o rfunCore -Wall -fno-warn-unused-do-bind -XGeneralizedNewtypeDeriving MainCore.hs
 
-optimized opt: $(RFUNFILES)
+web: $(RFUNFILES)
 	ghc -O2 -o ../bin/rfun -rtsopts --make -XGeneralizedNewtypeDeriving MainWeb.hs
 
 optimized opt: $(RFUNFILES)
