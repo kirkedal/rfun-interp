@@ -34,8 +34,8 @@ parseFromFile fname =
      return (parse programParser fname input)
      -- return (parse programParser fname input)
 
-parseFromValue :: String -> Either ParserError Value
-parseFromValue s = parse pValue "Value" s
+parseFromValue :: String -> Either ParserError [Value]
+parseFromValue s = parse (some pValue) "Value" s
 
 lineComment :: Parser ()
 lineComment = L.skipLineComment "--"

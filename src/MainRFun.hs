@@ -51,7 +51,9 @@ parseProgram :: String -> IO Program
 parseProgram filename = parseFromFile filename >>= fromParserError
 
 parseValues :: [String] -> IO [Value]
-parseValues strV = fromParserError $ (mapM parseFromValue strV)
+parseValues strV =
+  do l <- fromParserError $ mapM parseFromValue strV
+     return $ concat l
 
 fromParserError :: Either ParserError a -> IO a
 fromParserError (Left err) = (putStr (prettyParseError err)) >> (exitWith $ ExitFailure 1)

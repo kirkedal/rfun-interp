@@ -47,9 +47,9 @@ fib (S m) =
 pack :: [a] <-> [(a, Nat)]
 pack [] = []
 pack (c1 : r) =
-  case pack r of
+  case (pack r) of
     [] -> [(c1, 1)]
     ((c2, n) : t) ->
-      case eq c1 c2 of
+      case (eq c1 c2) of
         (Neq c2p) -> ((c1, 1) : (c2p, n) : t)
         (Eq) -> ((c1, (S n)) : t)
