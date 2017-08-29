@@ -1,4 +1,4 @@
-RFUNFILES=Ast.hs MainRFun.hs Parser.hs PrettyPrinter.hs TypeCheck.hs Interp.hs
+RFUNFILES=Ast.hs MainWeb.hs MainRFun.hs Parser.hs PrettyPrinter.hs TypeCheck.hs Interp.hs
 COREFILES=MainCore.hs Core/Ast.hs Core/Interp.hs Core/Parser.hs Core/Preparse.hs Core/RFun2Prog.hs
 BNFC=rfun.cf
 
@@ -7,6 +7,9 @@ rfun: $(RFUNFILES)
 
 core: $(COREFILES)
 	ghc --make -o rfunCore -Wall -fno-warn-unused-do-bind -XGeneralizedNewtypeDeriving MainCore.hs
+
+optimized opt: $(RFUNFILES)
+	ghc -O2 -o ../bin/rfun -rtsopts --make -XGeneralizedNewtypeDeriving MainWeb.hs
 
 optimized opt: $(RFUNFILES)
 	ghc -O2 -o ../bin/rfun -rtsopts --make -XGeneralizedNewtypeDeriving MainRFun.hs
