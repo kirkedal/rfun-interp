@@ -1,0 +1,55 @@
+---------------------------------------------------------------
+---- DUPLICATION / EQUALITY
+---------------------------------------------------------------
+
+-- There exist a predefined data constuctor for
+-- equality-testing, which have the following definition.
+   -- data EQ = Eq | Neq a
+
+-- Furthermore, there exist a predefined function to perform
+-- equality-testing. It is a special function with the
+-- following data type.
+   -- eq :: a -> a <-> EQ
+
+-- Based on this we can define a duplication function
+dup :: a -> () <-> a
+dup x () =  eq! x Eq
+
+---------------------------------------------------------------
+---- ARITHMETIC
+---------------------------------------------------------------
+
+-- We can define the natural numbers as Peano numbers
+data Nat = Z | S Nat
+
+-- This will give the intuitive definition of addition
+plus :: Nat -> Nat <-> Nat
+plus Z     x = x
+plus (S y) x =
+  let x' = plus y x
+  in  (S x')
+
+---------------------------------------------------------------
+---- APPLICATIONS
+---------------------------------------------------------------
+
+-- The classical Fibonacci function (embedded to result in a
+-- pair) can be defined in the following way.
+fib :: Nat <-> (Nat, Nat)
+fib Z    = ((S Z),Z)
+fib (S m) =
+  let (x,y) = fib m
+      y' = plus x y
+  in (y', x)
+
+-- The implementation of a run-length encoding function
+-- using the equality function
+pack :: [a] <-> [(a, Nat)]
+pack [] = []
+pack (c1 : r) =
+  case pack r of
+    [] -> [(c1, 1)]
+    ((c2, n) : t) ->
+      case eq c1 c2 of
+        (Neq c2p) -> ((c1, 1) : (c2p, n) : t)
+        (Eq) -> ((c1, (S n)) : t)

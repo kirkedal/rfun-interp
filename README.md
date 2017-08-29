@@ -33,7 +33,7 @@ Alternatively, you can also use our online interpreter, which is available at:
 
 For historical reasons the Fibonacci function have always been used as a _Hello World_ program for reversible language. There is no reason to change this so here it is:
 
-```
+```haskell
 fib :: Nat <-> (Nat, Nat)
 fib Z     = ((S Z),(S Z))
 fib (S m) =
