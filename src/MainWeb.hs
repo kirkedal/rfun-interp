@@ -30,7 +30,7 @@ main =
   do
     args <- getArgs
     case args of
-      [filename , values, program] ->
+      [program, values, filename] ->
         do p <- parseProgram filename
            vs <- parseValues [values]
            typecheckProgram p
