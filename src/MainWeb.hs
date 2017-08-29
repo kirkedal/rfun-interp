@@ -33,8 +33,8 @@ main =
       [program, values, filename] ->
         do p <- parseProgram filename
            vs <- parseValues [values]
-           typecheckProgram p
-           res <- timeout (5 * 1000000) $ (return $ interp p program vs)
+           p' <- typecheckProgram p
+           res <- timeout (5 * 1000000) $ (return $ interp p' program vs)
            case res of
              Just (Left err)  -> putStrLn "Run-time error:" >> (putStrLn $ err)
              Just (Right val) -> putStrLn $ ppValue val
