@@ -33,12 +33,14 @@ main =
       [program, values, filename] ->
         do p <- parseProgram filename
            vs <- parseValues [values]
-           p' <- typecheckProgram p
-           res <- timeout (5 * 1000000) $ (return $ interp p' program vs)
-           case res of
-             Just (Left err)  -> putStrLn "Run-time error:" >> (putStrLn $ err)
-             Just (Right val) -> putStrLn $ ppValue val
-             Nothing -> exitWith $ ExitFailure 124
+           case typecheck p of
+             (Just e) -> putStrLn e
+             Nothing  ->
+               do res <- timeout (5 * 1000000) $ (return $ interp p program vs)
+                  case res of
+                    Just (Left err)  -> putStrLn "Run-time error:" >> (putStrLn $ err)
+                    Just (Right val) -> putStrLn $ ppValue val
+                    Nothing -> exitWith $ ExitFailure 124
       _ -> putStrLn "Wrong number of arguments.\nUsage:\n  \"rfun\" programfile startfunc startvalue+\nor to stop before interpretation:\n  \"rfun\" programfile "
 
 typecheckProgram :: Program -> IO Program
