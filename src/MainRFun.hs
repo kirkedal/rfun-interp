@@ -22,6 +22,8 @@ import Interp
 
 import System.Environment
 import System.Exit
+import System.Timeout
+
 
 main :: IO ()
 main =
@@ -32,9 +34,11 @@ main =
         do p <- parseProgram filename
            vs <- parseValues values
            typecheckProgram p
-           case interp p program vs of
-             Left err  -> putStrLn "Run-time error:" >> (putStrLn $ err)
-             Right res -> putStrLn $ ppValue res
+           res <- timeout (5 * 1000000) $ (return $ interp p program vs)
+           case res of
+             Just (Left err)  -> putStrLn "Run-time error:" >> (putStrLn $ err)
+             Just (Right val) -> putStrLn $ ppValue val
+             Nothing -> exitWith $ ExitFailure 124
       [filename] -> parseProgram filename >>= typecheckProgram >>= prettyPrintProgram
       _ -> putStrLn "Wrong number of arguments.\nUsage:\n  \"rfun\" programfile startfunc startvalue+\nor to stop before interpretation:\n  \"rfun\" programfile "
 
