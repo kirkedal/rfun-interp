@@ -13,3 +13,4 @@ cabal.config
 src/Main
 
 docs/*
+site

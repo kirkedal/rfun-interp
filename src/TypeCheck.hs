@@ -20,13 +20,12 @@ import qualified Data.Map as M
 
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Except hiding (catchError)
-import Data.Functor.Identity
+import Control.Monad.Except
 
 -- import Data.List (intersperse)
 
 typecheck :: Program -> Maybe String
-typecheck p = catchError $ hts >> cfd >> ltc
+typecheck p = catchTCError $ hts >> cfd >> ltc
   where
     hts = mapError hasTypeSignature p
     cfd = mapError checkFunctionDefinitions p
@@ -41,9 +40,9 @@ type TCError a = Either String a
 noTypeError :: TCError ()
 noTypeError = return ()
 
-catchError :: TCError () -> Maybe String
-catchError (Right _) = Nothing
-catchError (Left l ) = return l
+catchTCError :: TCError () -> Maybe String
+catchTCError (Right _) = Nothing
+catchTCError (Left l ) = return l
 
 mapError :: (a -> TCError ()) -> [a] -> TCError ()
 mapError f l =
@@ -185,7 +184,7 @@ newtype TC a = E { runE :: StateT Vars (ReaderT FunEnv (Except String)) a }
                deriving (Applicative, Functor, Monad, MonadReader FunEnv, MonadState Vars, MonadError String)
 
 runTC :: TC a -> Vars -> FunEnv -> (TCError (a, Vars))
-runTC eval vars fenv = runIdentity $ runExceptT $ runReaderT (runStateT (runE eval) vars) fenv
+runTC eval vars fenv = runExcept $ runReaderT (runStateT (runE eval) vars) fenv
 
 addLive :: Ident -> BType -> TC BType
 addLive i btype =

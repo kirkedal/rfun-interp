@@ -26,7 +26,7 @@ data Nat = Z | S Nat
 plus :: Nat -> Nat <-> Nat
 plus Z     x = x
 plus (S y) x =
-  let x' = plus y x
+  let x' = plus y y
   in  (S x')
 
 ---------------------------------------------------------------

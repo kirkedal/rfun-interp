@@ -32,8 +32,8 @@ main =
       (filename : program : values) ->
         do p <- parseProgram filename
            vs <- parseValues values
-           p' <- typecheckProgram p
-           case interp p' program vs of
+           typecheckProgram p
+           case interp p program vs of
              (Left err)  -> putStrLn "Run-time error:" >> (putStrLn $ err)
              (Right val) -> putStrLn $ ppValue val
       [filename] -> parseProgram filename >>= typecheckProgram >>= prettyPrintProgram
