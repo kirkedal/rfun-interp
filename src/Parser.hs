@@ -260,7 +260,7 @@ pLexprA = try app <|> try pLexpr <|> parLE  <?> "Left-expression"
 
 
 pValue :: Parser Value
-pValue = int <|> tuple <|> list <|> try funName <|> try constr <|> try constrp <|> try tuple <|> par <?>  "Value"
+pValue = int <|> tuple <|> list <|> try funName <|> try constrp <|> try constr <|> try tuple <|> par <?>  "Value"
   where
     int    = do i <- integer
                 return $ IntV i

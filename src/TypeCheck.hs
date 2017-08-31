@@ -135,6 +135,8 @@ bTypeUnification (FunT  t1) (FunT  t2) =
     Nothing  -> Nothing
     (Just t) -> Just $ FunT t
 bTypeUnification t@(VarT _) (VarT _) = Just t
+bTypeUnification (VarT _) t = Just t
+bTypeUnification t (VarT _) = Just t
 -- bTypeUnification t@(VarT i1) (VarT i2) | identifier i1 == identifier i2 = Just t
 bTypeUnification  AnyT       t         = Just t
 bTypeUnification  t          AnyT      = Just t

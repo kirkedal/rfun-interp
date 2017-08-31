@@ -33,10 +33,11 @@ interp :: Program -> String -> [Value] -> Either String Value
 interp p i vs =
   -- Left $ C.prettyFuncEnv funEnv
   case runProg i (tcValues vs) funEnv of
-    (Left err) -> Left err
+    (Left err) -> Left $ err ++ "\n\n" ++ (C.prettyFuncEnv funEnv)
     (Right a)  -> fromCoreValue $ fst a
   where
-    funEnv = runPreparse $ toCore p
+    pCore = toCore p
+    funEnv = runPreparse $ pCore
 
 fromCoreValue :: C.Value -> Either String Value
 fromCoreValue (C.ConstrV "Tuple" vs) = Right $ fcValue $ last vs
