@@ -4,7 +4,7 @@ This is a tutorial that introduces the reversible functional RFun. More specific
 
 It is not intended to give a detailed formalisation of RFun, and for this we refer to the references. Also we do not give any background of reversible computations nor any motivation for looking it at the first place; for this we will refer to [...].
 
-Note also that RFun is being actively developed. It is therefore expected that the language will change over time. If you find the language interesting, you can also participate in further development.
+**Note** also that RFun is being actively developed. It is therefore expected that the language will change over time. Also, though the type checker is (mostly) sound, it is by fra complete. The interpretation, however, is both which makes is a langauge you can play with. If you find the language interesting, you can also participate in further development.
 
 ## History
 
