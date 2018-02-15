@@ -22,6 +22,8 @@ import Text.Megaparsec (sourceName, sourceLine, sourceColumn, Pos, unPos)
 import qualified Data.Map as M
 -- import Text.Megaparsec.Pos (unPos)
 
+-- import Data.Complex
+
 ppProgram :: Program -> String
 ppProgram = render . formatProgram
 
@@ -89,6 +91,8 @@ formatTypeSig (TypeSig ancT leftT rightT) =
 
 formatBType :: BType -> Doc
 -- formatBType NatT           = text "Nat"
+formatBType  IntT          = text "Int"
+formatBType  QbitT         = text "Qbit"
 formatBType (DataT ident)  = formatIdent ident
 formatBType (ListT bType)  = brackets $ formatBType bType
 formatBType (ProdT bTypes) = parens $ commaSep formatBType bTypes
@@ -160,6 +164,7 @@ formatIdent = text.identifier
 
 formatValue :: Value -> Doc
 formatValue (IntV i)  = integer i
+formatValue (QbitV c)  = text $ show c
 formatValue (TupleV values) = parens $ commaSep formatValue values
 formatValue (ListV  values) = brackets $ commaSep formatValue values
 formatValue (ConstrV ident values) = parens $ text ident <+> (hsep (map formatValue values))

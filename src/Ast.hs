@@ -20,6 +20,8 @@ module Ast where
 import qualified Text.Megaparsec as P  -- (SourcePos, SourcePos(..), Pos(..))
 import qualified Data.Map as M
 
+import Data.Complex
+
 -- data Module   = Module { moduleName    :: Ident
 --                        , moduleExports :: [Ident]
 --                        , moduleImports :: [Ident]
@@ -47,7 +49,7 @@ data Clause   = Clause { clauseIdent :: Ident
 data TypeSig  = TypeSig [BType] BType BType
               deriving (Eq, Show)
 
-data BType    = DataT Ident | ListT BType | ProdT [BType] | SumT [BType] | FunT TypeSig | VarT Ident | AnyT
+data BType    = IntT | QbitT | DataT Ident | ListT BType | ProdT [BType] | SumT [BType] | FunT TypeSig | VarT Ident | AnyT
               deriving (Eq, Show)
 
 -- |An expression is
@@ -81,6 +83,7 @@ data Ident    = Ident { identifier :: String
 -- |A value (p. 16) is defined as
 -- * a constructor of 0 or more values
 data Value = IntV Integer
+           | QbitV (Complex Double)
            | TupleV [Value]
            | ListV  [Value]
            | ConstrV String [Value]

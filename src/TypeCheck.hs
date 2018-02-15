@@ -197,7 +197,7 @@ addLive i btype =
 
 addAncillae :: Ident -> BType -> TC BType
 addAncillae i btype =
-  do b <- varExist i
+  do b  <- varExist i
      when b $ throwError $ errorAddExistingVariable i  --- Can check if it is alive of dead
      modify (\x -> M.insert (identifier i) (Ancillae btype) x)
      return btype
@@ -218,7 +218,11 @@ checkAncillae :: Ident -> BType -> TC BType
 checkAncillae i btype =
   do c <- get
      case M.lookup (identifier i) c of
-       Nothing  -> throwError $ errorUseOfNonExistingVariable i
+       Nothing  ->
+         do b <- funExist i
+            unless b $ throwError $ errorUseOfNonExistingVariable i
+            -- t <- funTypeSig i
+            return btype
        (Just Killed) -> throwError $ errorUseKilledVariable i
        (Just (Ancillae t)) ->
          case bTypeUnification btype t of
@@ -229,10 +233,16 @@ checkAncillae i btype =
            Nothing  -> throwError $ errorDifferentTypes i t btype
            (Just ut) -> return ut
 
+
 varExist :: Ident -> TC Bool
 varExist i =
   do v <- get
      return $ M.member (identifier i) v
+
+funExist :: Ident -> TC Bool
+funExist i =
+  do fenv <- ask
+     return $ M.member (identifier i) fenv
 
 funTypeSig :: Ident -> TC TypeSig
 funTypeSig i | (identifier i) == "eq" = return $ TypeSig [VarT i] (VarT i) (DataT $ makeIdent "EQ")
@@ -322,13 +332,13 @@ checkLExpr addFun le@(List lExprList) tp@(ListT btype) = getListLExprType lExprL
 checkLExpr _ lExpr@(List _) t = throwError $ errorLExprUnification lExpr t
 checkLExpr addFun (App ident True lExprs) _ =
   do (TypeSig ancTs updT retT) <- funTypeSig ident
-     when ((length ancTs) + 1 /= length lExprs) $ throwError $ errorDifferentNumberArgsApp ident (TypeSig ancTs updT retT) lExprs
+     -- when ((length ancTs) + 1 /= length lExprs) $ throwError $ errorDifferentNumberArgsApp ident (TypeSig ancTs updT retT) lExprs
      sequence $ zipWith (checkLExpr checkAncillae) (init lExprs) ancTs
      checkLExpr addFun (last lExprs) updT
      return retT
 checkLExpr addFun (App ident False lExprs) _ =
   do (TypeSig ancTs updT retT) <- funTypeSig ident
-     when ((length ancTs) + 1 /= length lExprs) $ throwError $ errorDifferentNumberArgsApp ident (TypeSig ancTs updT retT) lExprs
+     -- when ((length ancTs) + 1 /= length lExprs) $ throwError $ errorDifferentNumberArgsApp ident (TypeSig ancTs updT retT) lExprs
      sequence $ zipWith (checkLExpr checkAncillae) (init lExprs) ancTs
      checkLExpr addFun (last lExprs) retT
      return updT

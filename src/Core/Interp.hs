@@ -90,11 +90,16 @@ lookupValue ident sub
 --  in the list of Idents, the second the rest.
 divide :: [Ident] -> Substitution -> Eval (Substitution, Substitution)
 divide idents sub =
-  if M.size sub1 == length idents
-  then return (sub1, sub2)
+  if M.size sub1enc == length idents
+  then return (sub1enc, sub2)
   else failEval $ "Variables not found when dividing:\n\t" ++ show idents ++ "\n" ++ show sub1
   where
     (sub1, sub2) = M.partitionWithKey (\k _ -> elem k idents) sub
+    sub1enc = M.fromList $ map (identAdd sub1) idents
+    identAdd subA i =
+      case peakValue i subA of
+        Nothing -> (i, ConstrV i [])
+        Just v  -> (i, v)
 
 -- |Lookup a value in a substitution. Returns the value of the identifier and
 --  the substitution with the identifier removed.

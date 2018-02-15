@@ -87,6 +87,8 @@ tcExpr params (LetIn leftLE (App ident False funLEs) expr) =  -- Backward applic
     rightLEs  = (init leftLEs) ++ [tcLExpr leftLE]
 tcExpr params (LetIn leftLE rightLE expr) =  C.LetIn (tcLExpr leftLE) "id" (tcLExpr rightLE) (tcExpr params expr) -- No function application
 
+-- extractApps :: LExpr -> ([LExpr], LExpr)
+
 tcLExpr :: LExpr -> C.LExpr
 tcLExpr (Var ident) = C.Var $ tcIdent ident
 tcLExpr (Constr ident lExprs) = C.Constr (tcIdent ident) (map tcLExpr lExprs)

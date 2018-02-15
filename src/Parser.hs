@@ -23,6 +23,8 @@ import Text.Megaparsec.String
 import qualified Text.Megaparsec.Lexer as L
 import qualified Data.Map as M
 
+-- import Data.Complex
+
 type ParserError = ParseError Char Dec
 
 prettyParseError :: ParserError -> String
@@ -153,9 +155,10 @@ extType = try btype <|> funT
                return $ FunT t
 
 btype :: Parser BType
-btype = try list <|> try tuple <|> try dataT <|> try anyT <|> parens btype
+btype = try intT <|> try qbitT <|> try list <|> try tuple <|> try dataT <|> try anyT <|> parens btype
   where
-    -- nat   = symbol "Nat" >> return NatT
+    intT   = symbol "Int" >> return IntT
+    qbitT   = symbol "Qbit" >> return QbitT
     list  = do t <- brackets btype
                return $ ListT t
     tuple = do t <- parens $ sepBy btype (symbol ",")
@@ -260,7 +263,7 @@ pLexprA = try app <|> try pLexpr <|> parLE  <?> "Left-expression"
 
 
 pValue :: Parser Value
-pValue = int <|> tuple <|> list <|> try funName <|> try constrp <|> try constr <|> try tuple <|> par <?>  "Value"
+pValue = int <|> list <|> funName <|> constr <|> try (parens constrp) <|> try tuple <?>  "Value"
   where
     int    = do i <- integer
                 return $ IntV i
