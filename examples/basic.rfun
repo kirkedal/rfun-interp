@@ -26,8 +26,75 @@ data Nat = Z | S Nat
 plus :: Nat -> Nat <-> Nat
 plus Z     x = x
 plus (S y) x =
-  let x' = plus y y
+  let x' = plus y x
   in  (S x')
+
+minus :: Nat -> Nat <-> Nat
+minus y x = plus! y x
+
+
+mult :: Nat -> Nat <-> Nat
+mult x     Z    = Z
+mult x (S  y) =
+  let m = mult x y
+  in  plus x m
+
+-- binom :: Nat -> Nat <-> Nat
+-- binom n Z     = (S Z)
+-- binom n (S k) =
+--   let r = binom
+
+data Bool = True | False
+
+even :: Nat -> () <-> Bool
+even 0 () = True
+even 1 () = False
+even (S y) () =
+  let b = even y ()
+  in not b
+
+not :: Bool <-> Bool
+not True = False
+not False = True
+
+
+map :: (a <-> b) -> [a] <-> [b]
+map fun [] = []
+map fun (l:ls) =
+  let l' = fun l
+      ls' = map fun ls
+  in  (l':ls')
+
+-- Equal to the Haskell tails function
+tails :: [a] <-> [[a]]
+tails [] = [[]]
+tails (x:xs) =
+  let xs' = dup xs ()
+      ys = tails xs
+  in  ((x:xs'):ys)
+
+scanl1 :: (a -> a <-> a) -> [a] <-> [a]
+scanl1 fun []  = []
+scanl1 fun [x] = [x]
+scanl1 fun (x:y:ls) =
+    let y' = fun x y
+        ls' = scanl1 fun (y':ls)
+    in  (x:ls')
+
+scanr1 :: (a -> a <-> a) -> [a] <-> [a]
+scanr1 fun []  = []
+scanr1 fun [x] =[x]
+scanr1 fun (x:y:ls) =
+  let (y':ls') = scanr1 fun (y:ls)
+      x' = fun y' x
+  in  (x':y':ls')
+
+
+---------------------------------------------------------------
+---- APPLICATIONS
+---------------------------------------------------------------
+
+data Tree = Leaf Nat | Node Nat Tree Tree
 
 ---------------------------------------------------------------
 ---- APPLICATIONS
@@ -53,3 +120,17 @@ pack (c1 : r) =
       case (eq c1 c2) of
         (Neq c2p) -> ((c1, 1) : (c2p, n) : t)
         (Eq) -> ((c1, (S n)) : t)
+
+-- Identical to Haskell group function 
+--   and not far from the run-length encoding
+group :: [a] <-> [[a]]
+group [] = []
+group (x:xs) =
+  case (group xs) of
+    [] -> [[x]]
+    ((y:ys):tail) ->
+      case (eq x y) of
+        (Eq) ->
+          let y' = dup x ()
+          in  ((x:y:ys):tail)
+        (Neq y') -> ([x]:(y':ys):tail)
