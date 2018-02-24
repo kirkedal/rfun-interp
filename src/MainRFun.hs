@@ -48,8 +48,13 @@ typecheckProgram p =
 prettyPrintProgram :: Program -> IO ()
 prettyPrintProgram = putStrLn.ppProgram
 
+
+loadFile :: String -> IO String
+loadFile "-"      = getContents
+loadFile filename = readFile filename
+
 parseProgram :: String -> IO Program
-parseProgram filename = parseFromFile filename >>= fromParserError
+parseProgram filename = loadFile filename >>= parseFromString >>= fromParserError
 
 parseValues :: [String] -> IO [Value]
 parseValues strV =
