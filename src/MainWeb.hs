@@ -30,17 +30,16 @@ main =
   do
     args <- getArgs
     case args of
-      [program, values, filename] ->
+      (filename : program : values) ->
         do p <- parseProgram filename
-           vs <- parseValues [values]
-           case typecheck p of
-             (Just e) -> putStrLn e
-             Nothing  ->
-               do res <- timeout (5 * 1000000) $ (return $ interp p program vs)
-                  case res of
-                    Just (Left err)  -> putStrLn "Run-time error:" >> (putStrLn $ err)
-                    Just (Right val) -> putStrLn $ ppValue val
-                    Nothing -> exitWith $ ExitFailure 124
+           vs <- parseValues values
+           typecheckProgram p
+           res <- timeout (5 * 1000000) $ (return $ interp p program vs)
+           case res of
+             (Just (Left err))  -> putStrLn "Run-time error:" >> (putStrLn $ err)
+             (Just (Right val)) -> putStrLn $ ppValue val
+             Nothing -> exitWith $ ExitFailure 124
+      [filename] -> parseProgram filename >>= typecheckProgram >>= prettyPrintProgram
       _ -> putStrLn "Wrong number of arguments.\nUsage:\n  \"rfun\" programfile startfunc startvalue+\nor to stop before interpretation:\n  \"rfun\" programfile "
 
 typecheckProgram :: Program -> IO Program
@@ -52,11 +51,13 @@ typecheckProgram p =
 prettyPrintProgram :: Program -> IO ()
 prettyPrintProgram = putStrLn.ppProgram
 
+
+loadFile :: String -> IO String
+loadFile "-"      = getContents
+loadFile filename = readFile filename
+
 parseProgram :: String -> IO Program
-parseProgram "-" =
-  do str <- getContents
-     parseFromString str >>= fromParserError
-parseProgram filename = parseFromFile filename >>= fromParserError
+parseProgram filename = loadFile filename >>= parseFromString >>= fromParserError
 
 parseValues :: [String] -> IO [Value]
 parseValues strV =
